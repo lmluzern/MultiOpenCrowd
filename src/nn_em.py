@@ -48,6 +48,18 @@ class nn_em:
         classifier.compile(optimizer=sgd, loss='binary_crossentropy', metrics=['accuracy'])
         return classifier
 
+    def define_multiclass_nn(self,n_neurons,m,class_num):
+         classifier = Sequential()
+         # Hidden Layer
+         layer0 = Dense(n_neurons, input_dim=m, activation='relu')
+         classifier.add(layer0)
+         # Output Layer
+         layer1 = Dense(class_num,activation='softmax')
+         classifier.add(layer1)
+         # Compiling the neural network
+         classifier.compile(loss='categorical_crossentropy', optimizer='rmsprop', metrics =['accuracy'])
+         return classifier
+
     def lr_pzi(self,classifier, X_train, X_test, y_train, y_test, steps):
         classifier.fit(X_train, y_train, epochs=steps, verbose=0)
         theta_i = classifier.predict(X_test)
