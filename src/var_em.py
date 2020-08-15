@@ -224,12 +224,13 @@ def var_em(nn_em_in,n_infls_unlabel, n_infls_label,aij_s,new_order, n_workers, s
     auc_val = roc_auc_score(y_val, theta_i_val)
     auc_test = roc_auc_score(y_test, theta_i_test)
     #auc_test = 0
-    precision_val_theta, recall_val_theta, thresholds_val_theta = precision_recall_curve(y_val,
-                                                                                         theta_i_val)
-    precision_test_theta, recall_test_theta, thresholds_test_theta = precision_recall_curve(y_test, theta_i_test)
+    # TODO: add multiclass metric
+    # precision_val_theta, recall_val_theta, thresholds_val_theta = precision_recall_curve(y_val,
+    #                                                                                      theta_i_val)
+    # precision_test_theta, recall_test_theta, thresholds_test_theta = precision_recall_curve(y_test, theta_i_test)
 
-    auprc_val_theta = metrics.auc(precision_val_theta, recall_val_theta, reorder=True)
-    auprc_test_theta = metrics.auc(precision_test_theta, recall_test_theta, reorder=True)
+    # auprc_val_theta = metrics.auc(precision_val_theta, recall_val_theta, reorder=True)
+    # auprc_test_theta = metrics.auc(precision_test_theta, recall_test_theta, reorder=True)
 
     scores_val_theta = precision_recall_fscore_support(y_val, np.where(theta_i_val > 0.5, 1, 0))
     scores_test_theta = precision_recall_fscore_support(y_test, np.where(theta_i_test > 0.5, 1, 0))
@@ -241,7 +242,7 @@ def var_em(nn_em_in,n_infls_unlabel, n_infls_label,aij_s,new_order, n_workers, s
     F1 val_theta 0, F1 val_theta 1,F1 test_theta 0, F1 test_theta 1"
     scores = str(-1) + ',0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,' + str(eval_model_val) + ',' + str(
         eval_model_test) + ',' + str(auc_val) + ',' + str(auc_test) + ',' + \
-             str(auprc_val_theta) + ',' + str(auprc_test_theta) + ',' + str(scores_val_theta[0][0]) + ',' + str(
+             """str(auprc_val_theta) + ',' + str(auprc_test_theta) + ','""" + str(scores_val_theta[0][0]) + ',' + str(
         scores_val_theta[0][1]) + ',' + \
              str(scores_test_theta[0][0]) + ',' + str(scores_test_theta[0][1]) + ',' + str(
         scores_val_theta[1][0]) + ',' + str(scores_val_theta[1][1]) + ',' + \
@@ -280,33 +281,34 @@ def var_em(nn_em_in,n_infls_unlabel, n_infls_label,aij_s,new_order, n_workers, s
         auc_val_theta = roc_auc_score(y_val, theta_i[strat_val:end_val])
         auc_test_theta = roc_auc_score(y_test, theta_i[end_val:])
         #auc_test_theta = 0
+        # TODO: add multiclass metric
+        # precision_val, recall_val, thresholds_val = precision_recall_curve(y_val, q_z_i_1[strat_val:end_val])
+        # precision_test, recall_test, thresholds_test = precision_recall_curve(y_test, q_z_i_1[end_val:])
 
-        precision_val, recall_val, thresholds_val = precision_recall_curve(y_val, q_z_i_1[strat_val:end_val])
-        precision_test, recall_test, thresholds_test = precision_recall_curve(y_test, q_z_i_1[end_val:])
-
-        auprc_val = metrics.auc(precision_val, recall_val,reorder=True)
-        auprc_test = metrics.auc(precision_test, recall_test,reorder=True)
+        # auprc_val = metrics.auc(precision_val, recall_val,reorder=True)
+        # auprc_test = metrics.auc(precision_test, recall_test,reorder=True)
 
         scores_val = precision_recall_fscore_support(y_val, np.where(q_z_i_1[strat_val:end_val] > 0.5, 1, 0),labels=[0,1])
         scores_test = precision_recall_fscore_support(y_test, np.where(q_z_i_1[end_val:] > 0.5, 1, 0),labels=[0,1])
 
-        precision_val_theta, recall_val_theta, thresholds_val_theta = precision_recall_curve(y_val, theta_i[strat_val:end_val])
-        precision_test_theta, recall_test_theta, thresholds_test_theta = precision_recall_curve(y_test, theta_i[end_val:])
+        # TODO: add multiclass metric
+        # precision_val_theta, recall_val_theta, thresholds_val_theta = precision_recall_curve(y_val, theta_i[strat_val:end_val])
+        # precision_test_theta, recall_test_theta, thresholds_test_theta = precision_recall_curve(y_test, theta_i[end_val:])
 
-        auprc_val_theta = metrics.auc(precision_val_theta, recall_val_theta,reorder=True)
-        auprc_test_theta = metrics.auc(precision_test_theta, recall_test_theta,reorder=True)
+        # auprc_val_theta = metrics.auc(precision_val_theta, recall_val_theta,reorder=True)
+        # auprc_test_theta = metrics.auc(precision_test_theta, recall_test_theta,reorder=True)
 
         scores_val_theta = precision_recall_fscore_support(y_val, np.where(theta_i[strat_val:end_val] > 0.5, 1, 0),labels=[0,1])
         scores_test_theta = precision_recall_fscore_support(y_test, np.where(theta_i[end_val:] > 0.5, 1, 0),labels=[0,1])
 
         print("\n\n")
         scores= str(em_step)+','+ str(eval_model_val) +','+str(eval_model_test)+','+str(auc_val) +','+ str(auc_test)+','+\
-                str(auprc_val)+','+str(auprc_test)+','+str(scores_val[0][0])+','+str(scores_val[0][1])+','+ \
+                """str(auprc_val)+','+str(auprc_test)+','"""+str(scores_val[0][0])+','+str(scores_val[0][1])+','+ \
                 str(scores_test[0][0])+','+str(scores_test[0][1])+','+str(scores_val[1][0])+','+str(scores_val[1][1])+','+\
                 str(scores_test[1][0])+','+str(scores_test[1][1])+','+str(scores_val[2][0])+','+ str(scores_val[2][1])+','+ \
                 str(scores_test[2][0])+','+str(scores_test[2][1])+','+str(eval_model_val_theta) +','+str(eval_model_test_theta)+','+\
                 str(auc_val_theta) +','+ str(auc_test_theta)+','+\
-                str(auprc_val_theta)+','+str(auprc_test_theta)+','+str(scores_val_theta[0][0])+','+str(scores_val_theta[0][1])+','+\
+                """str(auprc_val_theta)+','+str(auprc_test_theta)+','"""+str(scores_val_theta[0][0])+','+str(scores_val_theta[0][1])+','+\
                 str(scores_test_theta[0][0])+','+str(scores_test_theta[0][1])+','+str(scores_val_theta[1][0])+','+str(scores_val_theta[1][1])+','+\
                 str(scores_test_theta[1][0])+','+str(scores_test_theta[1][1])+','+str(scores_val_theta[2][0])+','+ str(scores_val_theta[2][1])+','+ \
                 str(scores_test_theta[2][0])+','+str(scores_test_theta[2][1])
