@@ -24,16 +24,16 @@ NUMBER_OF_LABELS = 5
 
 def init_probabilities(n_infls):
     # initialize probability z_i (item's quality) randomly
-    qz1 = 0.5 * np.ones((n_infls, 1))
+    qz1 = (1.0/NUMBER_OF_LABELS) * np.ones((n_infls, NUMBER_OF_LABELS))
     # initialize probability alpha beta (worker's reliability)
     A = 2
     B = 2
-    return 1 - qz1, qz1, A, B
+    return qz1, qz1, A, B
 
 
 def init_alpha_beta(A, B, n_workers):
-    alpha = np.zeros((n_workers, 1),dtype='float32')
-    beta = np.zeros((n_workers, 1),dtype='float32')
+    alpha = np.zeros((n_workers, NUMBER_OF_LABELS),dtype='float32')
+    beta = np.zeros((n_workers, NUMBER_OF_LABELS),dtype='float32')
     for w in range(0, n_workers):
         alpha[w] = A
         beta[w] = B
@@ -132,8 +132,8 @@ def e_step(n_infls_unlabel,y_train, n_workers, q_z_i_0, q_z_i_1, annotation_matr
         q_z_i_0_ = np.concatenate((q_z_i_0[:n_infls_unlabel], 1 - y_train, q_z_i_0[n_infls_unlabel + y_train.shape[0]:]))
 
         # update q(r)
-        new_alpha = np.zeros((n_workers, 1))
-        new_beta = np.zeros((n_workers, 1))
+        new_alpha = np.zeros((n_workers, NUMBER_OF_LABELS))
+        new_beta = np.zeros((n_workers, NUMBER_OF_LABELS))
         for worker in range(0, n_workers):
             new_alpha[worker] = alpha[worker]
             new_beta[worker] = beta[worker]
@@ -161,7 +161,8 @@ def e_step(n_infls_unlabel,y_train, n_workers, q_z_i_0, q_z_i_1, annotation_matr
             n_update, change = update(beta[worker], new_beta[worker],n_update,change)
             beta[worker] = new_beta[worker]
         avg_change = change * 1.0 / n_update
-        if avg_change < 0.01:
+        # avg of array
+        if (avg_change.sum()/NUMBER_OF_LABELS) < 0.01:
             break
         #print "qz1", q_z_i_1
         #print "alpha", alpha
@@ -170,7 +171,7 @@ def e_step(n_infls_unlabel,y_train, n_workers, q_z_i_0, q_z_i_1, annotation_matr
 
 def m_step(nn_em,q_z_i_0,q_z_i_1, classifier, social_features, total_epochs, steps, y_test, y_val,strat_val,alpha, beta):
     #print prob_e_step
-    prob_e_step = np.where(q_z_i_0 > 0.5, 0, 1)
+    # prob_e_step = np.where(q_z_i_0 > 0.5, 0, 1)
     theta_i, classifier, weights = nn_em.train_m_step(classifier, social_features,
                                                       q_z_i_1,
                                                       steps, total_epochs, y_test, y_val,strat_val)
@@ -204,7 +205,7 @@ def var_em(nn_em_in,n_infls_unlabel, n_infls_label,aij_s,new_order, n_workers, s
     steps_it0 = 0
     epsilon = 1e-4
     theta_i = q_z_i_1.copy()
-    old_theta_i = np.zeros((n_infls, 1))
+    old_theta_i = np.zeros((n_infls, NUMBER_OF_LABELS))
 
     y_val_label = np.argmax(y_val,axis=1)
     y_test_label = np.argmax(y_test,axis=1)
@@ -216,24 +217,23 @@ def var_em(nn_em_in,n_infls_unlabel, n_infls_label,aij_s,new_order, n_workers, s
         theta_i_test = classifier.predict(X_test)
         theta_i_unlabeled = classifier.predict(social_features_unlabeled)
 
-        theta_i_val = np.argmax(theta_i_val,axis=1)
-        theta_i_test = np.argmax(theta_i_test,axis=1)
-        theta_i_unlabeled = np.argmax(theta_i_unlabeled,axis=1) 
+        theta_i_val_label = np.argmax(theta_i_val,axis=1)
+        theta_i_test_label = np.argmax(theta_i_test,axis=1)
+        theta_i_unlabeled_label = np.argmax(theta_i_unlabeled,axis=1) 
 
-        theta_i = np.concatenate((theta_i_unlabeled, y_train_label, theta_i_val, theta_i_test))
-        eval_model_test = accuracy_score(y_test_label, theta_i_test)
-        eval_model_val = accuracy_score(y_val_label, theta_i_val)
+        theta_i = np.concatenate((theta_i_unlabeled, y_train, theta_i_val, theta_i_test))
+        eval_model_test = accuracy_score(y_test_label, theta_i_test_label)
+        eval_model_val = accuracy_score(y_val_label, theta_i_val_label)
         if steps_it0 % 10 == 0:
             print("epoch", steps_it0, " convergence:", LA.norm(theta_i - old_theta_i), \
                 "val", eval_model_val, "test", eval_model_test)
         steps_it0 += 1
 
     weights = classifier.get_weights()
-    # TODO: fix column length
-    # pd.DataFrame(np.concatenate((column_names[1:], weights[0]), axis=1)).to_csv(weights_before_em, encoding="utf-8")
+    pd.DataFrame(np.concatenate((column_names[1:], weights[0]), axis=1)).to_csv(weights_before_em, encoding="utf-8")
 
-    eval_model_test = accuracy_score(y_test_label, theta_i_test)
-    eval_model_val = accuracy_score(y_val_label, theta_i_val)
+    eval_model_test = accuracy_score(y_test_label, theta_i_test_label)
+    eval_model_val = accuracy_score(y_val_label, theta_i_val_label)
     strat_val = n_infls_unlabel + X_train.shape[0]
     end_val = n_infls_unlabel + X_train.shape[0] + X_val.shape[0]
 
@@ -250,8 +250,8 @@ def var_em(nn_em_in,n_infls_unlabel, n_infls_label,aij_s,new_order, n_workers, s
     # auprc_val_theta = metrics.auc(precision_val_theta, recall_val_theta, reorder=True)
     # auprc_test_theta = metrics.auc(precision_test_theta, recall_test_theta, reorder=True)
 
-    scores_val_theta = precision_recall_fscore_support(y_val_label, theta_i_val)
-    scores_test_theta = precision_recall_fscore_support(y_test_label, theta_i_test)
+    scores_val_theta = precision_recall_fscore_support(y_val_label, theta_i_val_label)
+    scores_test_theta = precision_recall_fscore_support(y_test_label, theta_i_test_label)
     head = "nb iteration,accuracy validation,accuracy test,auc val,auc test,auprc val, auprc test,precision val 0,precision val 1,\
     precision test 0,precision test 1,recall val 0, recall val 1,recall test 0, recall test 1,\
     F1 val 0, F1 val 1,F1 test 0, F1 test 1,accuracy validation_theta,accuracy test_theta,auc val_theta,auc test_theta,\
@@ -275,13 +275,14 @@ def var_em(nn_em_in,n_infls_unlabel, n_infls_label,aij_s,new_order, n_workers, s
         file.write('\n')
         file.write(scores)
         file.write('\n')
-    theta_i = np.concatenate((theta_i_unlabeled, y_train_label, theta_i_val, theta_i_test))
-    # theta_quality = np.concatenate((np.argmax(true_labels,axis=1), theta_i[social_features_unlabeled.shape[0]:]), axis=1)
-    # pd.DataFrame(theta_quality).to_csv(theta_file, index=False, header=['Truth', 'quality'])
+    theta_i = np.concatenate((theta_i_unlabeled, y_train, theta_i_val, theta_i_test))
+    theta_quality = np.concatenate((true_labels, theta_i[social_features_unlabeled.shape[0]:]), axis=1)
+    # TODO: add column names
+    pd.DataFrame(theta_quality).to_csv(theta_file, index=False)
+
     social_features = np.concatenate((social_features_unlabeled, social_features_labeled))
 
     em_step = 0
-    exit()
     while em_step < iterr:
         # variational E step
         q_z_i_0, q_z_i_1, alpha, beta = e_step(n_infls_unlabel, y_train, n_workers, q_z_i_0, q_z_i_1, aij_s, alpha,
@@ -290,15 +291,24 @@ def var_em(nn_em_in,n_infls_unlabel, n_infls_label,aij_s,new_order, n_workers, s
         theta_i, classifier = m_step(nn_em_in, q_z_i_0,q_z_i_1, classifier, social_features, total_epochs, steps, y_test, y_val,
                                      strat_val, alpha, beta)
         em_step += 1
-        eval_model_val = accuracy_score(y_val, np.where(q_z_i_0[strat_val:end_val] > 0.5, 0, 1))
-        eval_model_test = accuracy_score(y_test, np.where(q_z_i_0[end_val:] > 0.5, 0, 1))
-        auc_val = roc_auc_score(y_val, q_z_i_1[strat_val:end_val])
-        auc_test = roc_auc_score(y_test, q_z_i_1[end_val:])
+        q_z_i_0_val_label = np.argmax(q_z_i_0[strat_val:end_val],axis=1)
+        q_z_i_0_test_label = np.argmax(q_z_i_0[end_val:],axis=1)
+        eval_model_val = accuracy_score(y_val_label, q_z_i_0_val_label)
+        eval_model_test = accuracy_score(y_test_label, q_z_i_0_test_label)
+
+        q_z_i_1_val_label = np.argmax(q_z_i_1[strat_val:end_val],axis=1)
+        q_z_i_1_test_label = np.argmax(q_z_i_1[end_val:],axis=1)
+        auc_val = roc_auc_score(y_val_label, q_z_i_1_val_label)
+        auc_test = roc_auc_score(y_test_label, q_z_i_1_test_label)
+
         #auc_test = 0
-        eval_model_val_theta = accuracy_score(y_val, np.where(theta_i[strat_val:end_val] > 0.5, 1, 0))
-        eval_model_test_theta = accuracy_score(y_test, np.where(theta_i[end_val:] > 0.5, 1, 0))
-        auc_val_theta = roc_auc_score(y_val, theta_i[strat_val:end_val])
-        auc_test_theta = roc_auc_score(y_test, theta_i[end_val:])
+        theta_i_val_label = np.argmax(theta_i[strat_val:end_val],axis=1)
+        theta_i_test_label = np.argmax(theta_i[end_val:],axis=1)
+
+        eval_model_val_theta = accuracy_score(y_val_label, theta_i_val_label)
+        eval_model_test_theta = accuracy_score(y_test_label, theta_i_test_label)
+        auc_val_theta = roc_auc_score(y_val_label, theta_i_val_label)
+        auc_test_theta = roc_auc_score(y_test_label, theta_i_test_label)
         #auc_test_theta = 0
         # TODO: add multiclass metric
         # precision_val, recall_val, thresholds_val = precision_recall_curve(y_val, q_z_i_1[strat_val:end_val])
@@ -307,8 +317,8 @@ def var_em(nn_em_in,n_infls_unlabel, n_infls_label,aij_s,new_order, n_workers, s
         # auprc_val = metrics.auc(precision_val, recall_val,reorder=True)
         # auprc_test = metrics.auc(precision_test, recall_test,reorder=True)
 
-        scores_val = precision_recall_fscore_support(y_val, np.where(q_z_i_1[strat_val:end_val] > 0.5, 1, 0),labels=[0,1])
-        scores_test = precision_recall_fscore_support(y_test, np.where(q_z_i_1[end_val:] > 0.5, 1, 0),labels=[0,1])
+        scores_val = precision_recall_fscore_support(y_val_label, q_z_i_1_val_label)
+        scores_test = precision_recall_fscore_support(y_test_label, q_z_i_1_test_label)
 
         # TODO: add multiclass metric
         # precision_val_theta, recall_val_theta, thresholds_val_theta = precision_recall_curve(y_val, theta_i[strat_val:end_val])
@@ -317,17 +327,17 @@ def var_em(nn_em_in,n_infls_unlabel, n_infls_label,aij_s,new_order, n_workers, s
         # auprc_val_theta = metrics.auc(precision_val_theta, recall_val_theta,reorder=True)
         # auprc_test_theta = metrics.auc(precision_test_theta, recall_test_theta,reorder=True)
 
-        scores_val_theta = precision_recall_fscore_support(y_val, np.where(theta_i[strat_val:end_val] > 0.5, 1, 0),labels=[0,1])
-        scores_test_theta = precision_recall_fscore_support(y_test, np.where(theta_i[end_val:] > 0.5, 1, 0),labels=[0,1])
+        scores_val_theta = precision_recall_fscore_support(y_val_label, theta_i_val_label)
+        scores_test_theta = precision_recall_fscore_support(y_test_label, theta_i_test_label)
 
         print("\n\n")
         scores= str(em_step)+','+ str(eval_model_val) +','+str(eval_model_test)+','+str(auc_val) +','+ str(auc_test)+','+\
-                """str(auprc_val)+','+str(auprc_test)+','"""+str(scores_val[0][0])+','+str(scores_val[0][1])+','+ \
+                str(scores_val[0][0])+','+str(scores_val[0][1])+','+ \
                 str(scores_test[0][0])+','+str(scores_test[0][1])+','+str(scores_val[1][0])+','+str(scores_val[1][1])+','+\
                 str(scores_test[1][0])+','+str(scores_test[1][1])+','+str(scores_val[2][0])+','+ str(scores_val[2][1])+','+ \
                 str(scores_test[2][0])+','+str(scores_test[2][1])+','+str(eval_model_val_theta) +','+str(eval_model_test_theta)+','+\
                 str(auc_val_theta) +','+ str(auc_test_theta)+','+\
-                """str(auprc_val_theta)+','+str(auprc_test_theta)+','"""+str(scores_val_theta[0][0])+','+str(scores_val_theta[0][1])+','+\
+                str(scores_val_theta[0][0])+','+str(scores_val_theta[0][1])+','+\
                 str(scores_test_theta[0][0])+','+str(scores_test_theta[0][1])+','+str(scores_val_theta[1][0])+','+str(scores_val_theta[1][1])+','+\
                 str(scores_test_theta[1][0])+','+str(scores_test_theta[1][1])+','+str(scores_val_theta[2][0])+','+ str(scores_val_theta[2][1])+','+ \
                 str(scores_test_theta[2][0])+','+str(scores_test_theta[2][1])
@@ -489,6 +499,8 @@ if __name__ == '__main__':
     influencer_unlabeled = influencer_unlabeled.drop(['screen_name','tweet2vec'], axis=1)
 
     column_names = np.array(influencer_labeled.columns).reshape((influencer_labeled.shape[1], 1))
+    for i in range(0,tweet2vec_dim):
+        column_names = np.append(column_names, np.array([['vector' + str(i)]]), axis=0)
     print(column_names.shape)
     annotation_matrix = pd.read_csv(annotation_file, sep=",",header=None)
     # annotation_matrix = np.loadtxt(annotation_file, delimiter=',')
@@ -613,8 +625,8 @@ if __name__ == '__main__':
     worker_reliability = np.concatenate((np.arange(n_workers).reshape(n_workers, 1), alpha, beta), axis=1)
     influencer_quality = np.concatenate(
         (social_features_labeled[:, [0]], true_labels, q_z_i_1[social_features_unlabeled.shape[0]:], theta_i[social_features_unlabeled.shape[0]:]), axis=1)
-    pd.DataFrame(worker_reliability).to_csv(worker_reliability_file, index=False, header=['worker', 'alpha','beta'])
-    pd.DataFrame(influencer_quality).to_csv(influencer_quality_file, index=False, header=['order', 'Truth', 'quality','theta'])
+    pd.DataFrame(worker_reliability).to_csv(worker_reliability_file, index=False)
+    pd.DataFrame(influencer_quality).to_csv(influencer_quality_file, index=False)
         # print(pd.DataFrame(data=np.concatenate([np.where(q_z_i_0 > q_z_i_0.mean(), 0, 1), true_labels], axis=1),
         #                    columns=['classification', 'truth']))
 # Execute main() function
