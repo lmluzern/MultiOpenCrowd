@@ -90,6 +90,9 @@ class nn_em:
         iter = 0
         old_theta_i = np.zeros((social_features.shape[0], 1))
         epsilon = 1e-3
+        y_test = np.argmax(y_test,axis=1)
+        y_val = np.argmax(y_val,axis=1)
+        
         while (LA.norm(theta_i - old_theta_i) > epsilon) and (iter < total_epochs):
             # if (iter % 5 == 0) and (iter>0):
             #     min_norm = LA.norm(theta_i - old_theta_i)
@@ -98,8 +101,12 @@ class nn_em:
             end_val = strat_val + y_val.shape[0]
             theta_i_test = theta_i[strat_val:(end_val+1)]
             theta_i_val = theta_i[(end_val+1):]
-            eval_model_test = accuracy_score(y_test, np.where(theta_i_test > 0.5, 1, 0))
-            eval_model_val = accuracy_score(y_val, np.where(theta_i_val > 0.5, 1, 0))
+
+            theta_i_test = np.argmax(theta_i_test,axis=1)
+            theta_i_val = np.argmax(theta_i_val,axis=1)
+
+            eval_model_test = accuracy_score(y_test, theta_i_test)
+            eval_model_val = accuracy_score(y_val, theta_i_val)
             if iter%10==0:
                 print ("epoch", iter," convergence influencer:", LA.norm(theta_i - old_theta_i),"val", eval_model_val,\
                     "test", eval_model_test)
