@@ -84,7 +84,7 @@ class nn_em:
         return theta_i, weights[0],classifier
 
     def train_m_step(self, classifier, social_features, prob_e_step,
-                       steps, total_epochs, y_test, y_val,strat_val):
+                       steps, total_epochs, y_test, y_val,start_val):
         theta_i = prob_e_step.copy()
         weights = np.array([])
         iter = 0
@@ -98,9 +98,11 @@ class nn_em:
             #     min_norm = LA.norm(theta_i - old_theta_i)
             old_theta_i = theta_i.copy()
             theta_i, weights, classifier = self.nn_pzi_test_val(classifier, social_features, prob_e_step, steps)
-            end_val = strat_val + y_val.shape[0]
-            theta_i_test = theta_i[strat_val:(end_val)]
-            theta_i_val = theta_i[(end_val):]
+            end_val = start_val + y_val.shape[0]
+            # theta_i_test = theta_i[strat_val:(end_val)]
+            # theta_i_val = theta_i[(end_val):]
+            theta_i_val = theta_i[start_val:end_val]
+            theta_i_test = theta_i[end_val:]
 
             theta_i_test = np.argmax(theta_i_test,axis=1)
             theta_i_val = np.argmax(theta_i_val,axis=1)
