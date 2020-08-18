@@ -96,7 +96,7 @@ def optimize_rj(x_train, n_neurons, nb_layers, training_epochs, display_step, ba
         return alpha_prime_res, beta_prime_res
 
 
-def e_step(n_infls_unlabel,y_train, n_workers, q_z_i_0, q_z_i_1, annotation_matrix, alpha, beta, theta_i,true_labels,new_order, max_it=100):
+def e_step(y_train, n_workers, q_z_i_0, q_z_i_1, annotation_matrix, alpha, beta, theta_i,true_labels,new_order, max_it=100):
     for it in range(max_it):
         change = 0
         n_update = 0
@@ -128,8 +128,8 @@ def e_step(n_infls_unlabel,y_train, n_workers, q_z_i_0, q_z_i_1, annotation_matr
             q_z_i_0[index_infl] = updated_q_z_i_0 * 1.0 / (updated_q_z_i_0 + updated_q_z_i_1)
             q_z_i_1[index_infl] = updated_q_z_i_1 * 1.0 / (updated_q_z_i_0 + updated_q_z_i_1)
 
-        q_z_i_1_ = np.concatenate((q_z_i_1[:n_infls_unlabel], y_train, q_z_i_1[n_infls_unlabel + y_train.shape[0]:]))
-        q_z_i_0_ = np.concatenate((q_z_i_0[:n_infls_unlabel], 1 - y_train, q_z_i_0[n_infls_unlabel + y_train.shape[0]:]))
+        q_z_i_1_ = np.concatenate((y_train, q_z_i_1[y_train.shape[0]:]))
+        q_z_i_0_ = np.concatenate((1 - y_train, q_z_i_0[y_train.shape[0]:]))
 
         # update q(r)
         new_alpha = np.zeros((n_workers, NUMBER_OF_LABELS))
@@ -169,12 +169,12 @@ def e_step(n_infls_unlabel,y_train, n_workers, q_z_i_0, q_z_i_1, annotation_matr
         #print "beta", beta
         return q_z_i_0_,q_z_i_1_,alpha,beta
 
-def m_step(nn_em,q_z_i_0,q_z_i_1, classifier, social_features, total_epochs, steps, y_test, y_val,strat_val,alpha, beta):
+def m_step(nn_em,q_z_i_0,q_z_i_1, classifier, social_features, total_epochs, steps, y_test, y_val,start_val,alpha, beta):
     #print prob_e_step
     # prob_e_step = np.where(q_z_i_0 > 0.5, 0, 1)
     theta_i, classifier, weights = nn_em.train_m_step(classifier, social_features,
                                                       q_z_i_1,
-                                                      steps, total_epochs, y_test, y_val,strat_val)
+                                                      steps, total_epochs, y_test, y_val,start_val)
     # n_neurons = 3
     # nb_layers = 0
     # training_epochs = 20
@@ -188,9 +188,9 @@ def m_step(nn_em,q_z_i_0,q_z_i_1, classifier, social_features, total_epochs, ste
     return theta_i,classifier
 
 
-def var_em(nn_em_in,n_infls_unlabel, n_infls_label,aij_s,new_order, n_workers, social_features_labeled,social_features_unlabeled, true_labels, supervision_rate, \
+def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_labeled, true_labels, supervision_rate, \
            column_names, n_neurons, hidden, m_feats, weights_before_em,weights_after_em,iterr,total_epochs,evaluation_file,theta_file,steps,nb_hidden_layer):
-    n_infls = n_infls_unlabel + n_infls_label
+    n_infls = n_infls_label
     q_z_i_0, q_z_i_1, A, B = init_probabilities(n_infls)
     alpha, beta = init_alpha_beta(A, B, n_workers)
 
@@ -215,13 +215,11 @@ def var_em(nn_em_in,n_infls_unlabel, n_infls_label,aij_s,new_order, n_workers, s
         classifier.fit(X_train, y_train, epochs=steps, verbose=0)
         theta_i_val = classifier.predict(X_val)
         theta_i_test = classifier.predict(X_test)
-        theta_i_unlabeled = classifier.predict(social_features_unlabeled)
 
         theta_i_val_label = np.argmax(theta_i_val,axis=1)
-        theta_i_test_label = np.argmax(theta_i_test,axis=1)
-        theta_i_unlabeled_label = np.argmax(theta_i_unlabeled,axis=1) 
+        theta_i_test_label = np.argmax(theta_i_test,axis=1) 
 
-        theta_i = np.concatenate((theta_i_unlabeled, y_train, theta_i_val, theta_i_test))
+        theta_i = np.concatenate((y_train, theta_i_val, theta_i_test))
         eval_model_test = accuracy_score(y_test_label, theta_i_test_label)
         eval_model_val = accuracy_score(y_val_label, theta_i_val_label)
         if steps_it0 % 10 == 0:
@@ -234,12 +232,12 @@ def var_em(nn_em_in,n_infls_unlabel, n_infls_label,aij_s,new_order, n_workers, s
 
     eval_model_test = accuracy_score(y_test_label, theta_i_test_label)
     eval_model_val = accuracy_score(y_val_label, theta_i_val_label)
-    strat_val = n_infls_unlabel + X_train.shape[0]
-    end_val = n_infls_unlabel + X_train.shape[0] + X_val.shape[0]
+    start_val = X_train.shape[0]
+    end_val = X_train.shape[0] + X_val.shape[0]
 
 
-    # auc_val = roc_auc_score(y_val, theta_i_val)
-    # auc_test = roc_auc_score(y_test, theta_i_test)
+    auc_val = roc_auc_score(y_val, theta_i_val,multi_class="ovo",average="macro")
+    auc_test = roc_auc_score(y_test, theta_i_test,multi_class="ovo",average="macro")
 
     #auc_test = 0
     # TODO: add multiclass metric
@@ -259,7 +257,7 @@ def var_em(nn_em_in,n_infls_unlabel, n_infls_label,aij_s,new_order, n_workers, s
     precision test_theta 0,precision test_theta 1,recall val_theta 0, recall val_theta 1,recall test_theta 0, recall test_theta 1,\
     F1 val_theta 0, F1 val_theta 1,F1 test_theta 0, F1 test_theta 1"
     scores = str(-1) + ',0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,' + str(eval_model_val) + ',' + str(
-        eval_model_test) + ',' + \
+        eval_model_test) + ',' + str(auc_val) + ',' + str(auc_test) + ',' + \
         str(scores_val_theta[0][0]) + ',' + str(
         scores_val_theta[0][1]) + ',' + \
              str(scores_test_theta[0][0]) + ',' + str(scores_test_theta[0][1]) + ',' + str(
@@ -275,40 +273,41 @@ def var_em(nn_em_in,n_infls_unlabel, n_infls_label,aij_s,new_order, n_workers, s
         file.write('\n')
         file.write(scores)
         file.write('\n')
-    theta_i = np.concatenate((theta_i_unlabeled, y_train, theta_i_val, theta_i_test))
-    theta_quality = np.concatenate((true_labels, theta_i[social_features_unlabeled.shape[0]:]), axis=1)
+    theta_i = np.concatenate((y_train, theta_i_val, theta_i_test))
+    theta_quality = np.concatenate((true_labels, theta_i), axis=1)
     # TODO: add column names
     pd.DataFrame(theta_quality).to_csv(theta_file, index=False)
 
-    social_features = np.concatenate((social_features_unlabeled, social_features_labeled))
+    social_features = social_features_labeled
 
     em_step = 0
     while em_step < iterr:
         # variational E step
-        q_z_i_0, q_z_i_1, alpha, beta = e_step(n_infls_unlabel, y_train, n_workers, q_z_i_0, q_z_i_1, aij_s, alpha,
+        q_z_i_0, q_z_i_1, alpha, beta = e_step(y_train, n_workers, q_z_i_0, q_z_i_1, aij_s, alpha,
                                                beta, theta_i, true_labels,new_order)
         # variational M step
         theta_i, classifier = m_step(nn_em_in, q_z_i_0,q_z_i_1, classifier, social_features, total_epochs, steps, y_test, y_val,
-                                     strat_val, alpha, beta)
+                                     start_val, alpha, beta)
         em_step += 1
-        q_z_i_0_val_label = np.argmax(q_z_i_0[strat_val:end_val],axis=1)
+        q_z_i_0_val_label = np.argmax(q_z_i_0[start_val:end_val],axis=1)
         q_z_i_0_test_label = np.argmax(q_z_i_0[end_val:],axis=1)
         eval_model_val = accuracy_score(y_val_label, q_z_i_0_val_label)
         eval_model_test = accuracy_score(y_test_label, q_z_i_0_test_label)
 
-        q_z_i_1_val_label = np.argmax(q_z_i_1[strat_val:end_val],axis=1)
+        q_z_i_1_val_label = np.argmax(q_z_i_1[start_val:end_val],axis=1)
         q_z_i_1_test_label = np.argmax(q_z_i_1[end_val:],axis=1)
-        auc_val = roc_auc_score(y_val_label, q_z_i_1_val_label)
-        auc_test = roc_auc_score(y_test_label, q_z_i_1_test_label)
+
+        auc_val = roc_auc_score(y_val, q_z_i_1[start_val:end_val],multi_class="ovo",average="macro")
+        auc_test = roc_auc_score(y_test, q_z_i_1[end_val:],multi_class="ovo",average="macro")
 
         #auc_test = 0
-        theta_i_val_label = np.argmax(theta_i[strat_val:end_val],axis=1)
+        theta_i_val_label = np.argmax(theta_i[start_val:end_val],axis=1)
         theta_i_test_label = np.argmax(theta_i[end_val:],axis=1)
 
         eval_model_val_theta = accuracy_score(y_val_label, theta_i_val_label)
         eval_model_test_theta = accuracy_score(y_test_label, theta_i_test_label)
-        auc_val_theta = roc_auc_score(y_val_label, theta_i_val_label)
-        auc_test_theta = roc_auc_score(y_test_label, theta_i_test_label)
+        auc_val_theta = roc_auc_score(y_val, theta_i[start_val:end_val],multi_class="ovo",average="macro")
+        auc_test_theta = roc_auc_score(y_test_label, theta_i[end_val:],multi_class="ovo",average="macro")
         #auc_test_theta = 0
         # TODO: add multiclass metric
         # precision_val, recall_val, thresholds_val = precision_recall_curve(y_val, q_z_i_1[strat_val:end_val])
@@ -471,32 +470,19 @@ if __name__ == '__main__':
 
     tweet2vec = pd.read_csv(tweet2vec_file)
 
-    # influencer_labeled = pd.read_csv(influencer_file_labeled, sep=",").drop(['screen_name'], axis=1)
-    # influencer_unlabeled = pd.read_csv(influencer_file_unlabeled, sep=",").drop(['screen_name'], axis=1)
-
     influencer_labeled = pd.read_csv(influencer_file_labeled, sep=",")
-    influencer_unlabeled = pd.read_csv(influencer_file_unlabeled, sep=",")
 
     influencer_labeled = pd.merge(influencer_labeled, tweet2vec[['screen_name','tweet2vec']], how='inner', on=['screen_name'])
     influencer_labeled = influencer_labeled[influencer_labeled['tweet2vec'].notna()]
 
-    influencer_unlabeled = pd.merge(influencer_unlabeled, tweet2vec[['screen_name','tweet2vec']], how='inner', on=['screen_name'])
-    influencer_unlabeled = influencer_unlabeled[influencer_unlabeled['tweet2vec'].notna()]
-
     labeled_embeddings = []
-    unlabeled_embeddings = []
 
     for index, row in influencer_labeled.iterrows():
         labeled_embeddings.append(np.fromstring(row['tweet2vec'][1:-1], dtype=float, sep=' '))
 
-    for index, row in influencer_unlabeled.iterrows():
-        unlabeled_embeddings.append(np.fromstring(row['tweet2vec'][1:-1], dtype=float, sep=' '))
-
     labeled_embeddings = np.array(labeled_embeddings)
-    unlabeled_embeddings = np.array(unlabeled_embeddings)
 
     influencer_labeled = influencer_labeled.drop(['screen_name','tweet2vec'], axis=1)
-    influencer_unlabeled = influencer_unlabeled.drop(['screen_name','tweet2vec'], axis=1)
 
     column_names = np.array(influencer_labeled.columns).reshape((influencer_labeled.shape[1], 1))
     for i in range(0,tweet2vec_dim):
@@ -521,23 +507,16 @@ if __name__ == '__main__':
     soc_label_bsh = social_features_labeled.copy()
     #np.random.shuffle(social_features_labeled)
 
-    # social_features_unlabeled = preprocessing.scale(influencer_unlabeled.values[:, 1:])
-    social_features_unlabeled = influencer_unlabeled.values[:, 1:]
-    social_features_unlabeled = np.concatenate((influencer_unlabeled.values[:, [0]], social_features_unlabeled, unlabeled_embeddings), axis=1)
-    soc_unlabel_bsh = social_features_unlabeled.copy()
-    #np.random.shuffle(social_features_unlabeled)
-
     m = social_features_labeled.shape[1]
     true_labels = social_features_labeled[:, (m - NUMBER_OF_LABELS):]
     social_features_labeled = social_features_labeled[:, :(m - NUMBER_OF_LABELS)]
 
     n_infls_label = social_features_labeled.shape[0]
-    n_infls_unlabel = social_features_unlabeled.shape[0]
     m_feats = social_features_labeled.shape[1]
     # n_workers = np.unique(annotation_matrix[:, 0]).shape[0]
     n_workers = annotation_matrix[0].unique().shape[0]
 
-    new_order = np.concatenate((social_features_unlabeled[:, 0], social_features_labeled[:, 0]), axis=0)
+    new_order = social_features_labeled[:, 0]
 
     total_epochs = args.total_epochs_nn#10
     n_neurons = args.total_neurons_nn #3
@@ -558,9 +537,19 @@ if __name__ == '__main__':
 
     for worker in range(0, n_workers):
         worker_aij = annotation_matrix[annotation_matrix[:, 0] == worker]
-        worker_aij_s = worker_aij.copy()
-        for i in range(0, n_infls_label + n_infls_unlabel):
-            worker_aij_s[i, :] = worker_aij[worker_aij[:, 1] == new_order[i]]
+        # worker_aij_s = worker_aij.copy()
+        worker_aij_s = np.empty((0, 2 + NUMBER_OF_LABELS), int)
+        for i in range(0, n_infls_label):
+            # TODO correct?
+            if worker_aij[worker_aij[:, 1] == new_order[i]].size > 0:
+                worker_aij_s = np.concatenate((worker_aij_s, worker_aij[worker_aij[:, 1] == new_order[i]]))
+                # worker_aij_s[i, :] = worker_aij[worker_aij[:, 1] == new_order[i]]
+            else:
+                no_answer = np.zeros(2 + NUMBER_OF_LABELS, dtype = int)
+                no_answer[0] = worker
+                no_answer[1] = i
+                no_answer = no_answer.reshape(-1,2 + NUMBER_OF_LABELS)
+                worker_aij_s = np.concatenate((worker_aij_s,no_answer))
         aij = np.concatenate((aij, worker_aij_s))
     all_workers = np.unique(annotation_matrix[:, 0])
 
@@ -602,14 +591,13 @@ if __name__ == '__main__':
         file.write("nb neurons," + str(n_neurons))
         file.write('\n')
     nn_em_in = nn_em()
-    print (social_features_labeled.shape, social_features_unlabeled.shape, true_labels.shape)
+    print (social_features_labeled.shape, true_labels.shape)
 
     social_features_labeled = social_features_labeled[:,1:]
-    social_features_unlabeled = social_features_unlabeled[:, 1:]
     m_feats = m_feats - 1
 
-    q_z_i_0, q_z_i_1, alpha, beta, theta_i, classifier = var_em(nn_em_in,n_infls_unlabel,n_infls_label,aij_s,new_order,n_workers,\
-                                                                social_features_labeled,social_features_unlabeled,\
+    q_z_i_0, q_z_i_1, alpha, beta, theta_i, classifier = var_em(nn_em_in,n_infls_label,aij_s,new_order,n_workers,\
+                                                                social_features_labeled,\
                                                                 true_labels,supervision_rate, column_names,\
                                                                 n_neurons,hidden,m_feats,weights_before_em,weights_after_em,\
                                                                 iterr,total_epochs,evaluation_file,theta_file,steps,nb_hidden_layer)
@@ -624,7 +612,7 @@ if __name__ == '__main__':
     influencer_quality_file = args.influencer_quality_file
     worker_reliability = np.concatenate((np.arange(n_workers).reshape(n_workers, 1), alpha, beta), axis=1)
     influencer_quality = np.concatenate(
-        (social_features_labeled[:, [0]], true_labels, q_z_i_1[social_features_unlabeled.shape[0]:], theta_i[social_features_unlabeled.shape[0]:]), axis=1)
+        (social_features_labeled[:, [0]], true_labels), axis=1)
     pd.DataFrame(worker_reliability).to_csv(worker_reliability_file, index=False)
     pd.DataFrame(influencer_quality).to_csv(influencer_quality_file, index=False)
         # print(pd.DataFrame(data=np.concatenate([np.where(q_z_i_0 > q_z_i_0.mean(), 0, 1), true_labels], axis=1),
