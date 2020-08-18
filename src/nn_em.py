@@ -92,15 +92,15 @@ class nn_em:
         epsilon = 1e-3
         y_test = np.argmax(y_test,axis=1)
         y_val = np.argmax(y_val,axis=1)
-        
+
         while (LA.norm(theta_i - old_theta_i) > epsilon) and (iter < total_epochs):
             # if (iter % 5 == 0) and (iter>0):
             #     min_norm = LA.norm(theta_i - old_theta_i)
             old_theta_i = theta_i.copy()
             theta_i, weights, classifier = self.nn_pzi_test_val(classifier, social_features, prob_e_step, steps)
             end_val = strat_val + y_val.shape[0]
-            theta_i_test = theta_i[strat_val:(end_val+1)]
-            theta_i_val = theta_i[(end_val+1):]
+            theta_i_test = theta_i[strat_val:(end_val)]
+            theta_i_val = theta_i[(end_val):]
 
             theta_i_test = np.argmax(theta_i_test,axis=1)
             theta_i_val = np.argmax(theta_i_val,axis=1)
