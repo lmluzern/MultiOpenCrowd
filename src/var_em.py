@@ -612,7 +612,7 @@ if __name__ == '__main__':
     influencer_quality_file = args.influencer_quality_file
     worker_reliability = np.concatenate((np.arange(n_workers).reshape(n_workers, 1), alpha, beta), axis=1)
     influencer_quality = np.concatenate(
-        (social_features_labeled[:, [0]], true_labels), axis=1)
+        (social_features_labeled[:, [0]], true_labels, q_z_i_1, theta_i), axis=1)
     pd.DataFrame(worker_reliability).to_csv(worker_reliability_file, index=False)
     pd.DataFrame(influencer_quality).to_csv(influencer_quality_file, index=False)
         # print(pd.DataFrame(data=np.concatenate([np.where(q_z_i_0 > q_z_i_0.mean(), 0, 1), true_labels], axis=1),
