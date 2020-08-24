@@ -17,10 +17,13 @@ import random
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import precision_recall_fscore_support
 from sklearn.metrics import precision_recall_curve
+from sklearn.metrics import classification_report
 from sklearn import metrics
 import argparse
 
-NUMBER_OF_LABELS = 5
+LABEL_NAMES = ['emerging', 'established', 'no_option']
+NUMBER_OF_LABELS = len(LABEL_NAMES)
+
 
 def init_probabilities(n_infls):
     # initialize probability z_i (item's quality) randomly
@@ -28,12 +31,12 @@ def init_probabilities(n_infls):
     # initialize probability alpha beta (worker's reliability)
     A = 2
     B = 2
-    return qz1, qz1, A, B
+    return qz1, qz1.copy(), A, B
 
 
 def init_alpha_beta(A, B, n_workers):
-    alpha = np.zeros((n_workers, NUMBER_OF_LABELS),dtype='float32')
-    beta = np.zeros((n_workers, NUMBER_OF_LABELS),dtype='float32')
+    alpha = np.zeros((n_workers, 1),dtype='float32')
+    beta = np.zeros((n_workers, 1),dtype='float32')
     for w in range(0, n_workers):
         alpha[w] = A
         beta[w] = B
@@ -42,7 +45,7 @@ def init_alpha_beta(A, B, n_workers):
 
 def update(a, b,n_update,change):
     n_update += 1
-    change += np.abs(a - b)
+    change += np.abs(a - b).sum()
     return n_update,change
 
 def optimize_rj(x_train, n_neurons, nb_layers, training_epochs, display_step, batch_size, n_input, alpha, beta):
@@ -107,24 +110,29 @@ def e_step(y_train, n_workers, q_z_i_0, q_z_i_1, annotation_matrix, alpha, beta,
             updated_q_z_i_0 = (1 - theta_i[index_infl])
             updated_q_z_i_1 = theta_i[index_infl]
             infl_aij = annotation_matrix[annotation_matrix[:, 1] == infl]
-            T_i = infl_aij[infl_aij[:, 2] == 1][:, 0]
+            worker_answer = infl_aij[~np.all(infl_aij[:,2:] == 0, axis=1)]
+            T_i = worker_answer[:, 0]
             for worker in T_i.astype(int):
                 #worker_id = np.where(all_workers == worker)
+                label_i = worker_answer[worker_answer[:, 0] == worker][:, 2:]
+                label_i = np.where(label_i[0] == 1)[0][0]
                 alpha_val = alpha[worker]
                 beta_val =  beta[worker]
-                updated_q_z_i_0 = updated_q_z_i_0 * np.exp(digamma(beta_val) - digamma(alpha_val + beta_val))
-                updated_q_z_i_1 = updated_q_z_i_1 * np.exp(digamma(alpha_val) - digamma(alpha_val + beta_val))
+                updated_q_z_i_0[label_i] = updated_q_z_i_0[label_i] * np.exp(digamma(beta_val) - digamma(alpha_val + beta_val))
+                updated_q_z_i_1[label_i] = updated_q_z_i_1[label_i] * np.exp(digamma(alpha_val) - digamma(alpha_val + beta_val))
 
-            T_i_n_all = infl_aij[infl_aij[:, 2] == 0][:, 0]
-            for worker in T_i_n_all.astype(int):
-                #worker_id = np.where(all_workers == worker)
-                alpha_val = alpha[worker]
-                beta_val =  beta[worker]
-                updated_q_z_i_0 = updated_q_z_i_0 * np.exp(digamma(alpha_val) - digamma(alpha_val + beta_val))
-                updated_q_z_i_1 = updated_q_z_i_1 * np.exp(digamma(beta_val) - digamma(alpha_val + beta_val))
+
+            # T_i_n_all = infl_aij[infl_aij[:, 2] == 0][:, 0]
+            # for worker in T_i_n_all.astype(int):
+            #     #worker_id = np.where(all_workers == worker)
+            #     alpha_val = alpha[worker]
+            #     beta_val =  beta[worker]
+            #     updated_q_z_i_0 = updated_q_z_i_0 * np.exp(digamma(alpha_val) - digamma(alpha_val + beta_val))
+            #     updated_q_z_i_1 = updated_q_z_i_1 * np.exp(digamma(beta_val) - digamma(alpha_val + beta_val))
 
             new_q_z_i_1 = updated_q_z_i_1 * 1.0 / (updated_q_z_i_0 + updated_q_z_i_1)
             n_update, change = update(q_z_i_1[index_infl], new_q_z_i_1,n_update,change)
+
             q_z_i_0[index_infl] = updated_q_z_i_0 * 1.0 / (updated_q_z_i_0 + updated_q_z_i_1)
             q_z_i_1[index_infl] = updated_q_z_i_1 * 1.0 / (updated_q_z_i_0 + updated_q_z_i_1)
 
@@ -132,28 +140,32 @@ def e_step(y_train, n_workers, q_z_i_0, q_z_i_1, annotation_matrix, alpha, beta,
         q_z_i_0_ = np.concatenate((1 - y_train, q_z_i_0[y_train.shape[0]:]))
 
         # update q(r)
-        new_alpha = np.zeros((n_workers, NUMBER_OF_LABELS))
-        new_beta = np.zeros((n_workers, NUMBER_OF_LABELS))
+        new_alpha = np.zeros((n_workers, 1))
+        new_beta = np.zeros((n_workers, 1))
         for worker in range(0, n_workers):
             new_alpha[worker] = alpha[worker]
             new_beta[worker] = beta[worker]
 
         for worker in range(0, n_workers):
             worker_aij = annotation_matrix[annotation_matrix[:, 0] == worker]
-            T_j_1 = worker_aij[worker_aij[:,2] == 1][:, 1]
-            for infl in T_j_1.astype(int):
+            # T_j_1 = worker_aij[worker_aij[:,2] == 1][:, 1]
+            T_j_1 = worker_aij[~np.all(worker_aij[:,2:] == 0, axis=1)]
+            for infl in T_j_1[:, 1].astype(int):
                 if (np.where(new_order == infl)[0].shape[0]) > 0:
                     index_infl = np.where(new_order == infl)[0][0]
-                    new_alpha[worker] += q_z_i_1_[index_infl]
-                    new_beta[worker] += 1 - q_z_i_1_[index_infl]
+                    label_i = T_j_1[T_j_1[:, 1] == infl][:, 2:]
+                    label_i = np.where(label_i[0] == 1)[0][0]
+                    assert infl == index_infl
+                    new_alpha[worker] += q_z_i_1_[index_infl][label_i]
+                    new_beta[worker] += 1 - q_z_i_1_[index_infl][label_i]
                 #print worker,infl,1,theta_i[infl]
-            T_j_0 = worker_aij[worker_aij[:, 2] == 0][:, 1]
-            for infl in T_j_0.astype(int):
-                if (np.where(new_order == infl)[0].shape[0]) > 0:
-                    index_infl = np.where(new_order == infl)[0][0]
-                    new_alpha[worker] += (1 - q_z_i_1_[index_infl])
-                    new_beta[worker] += q_z_i_1_[index_infl]
-                #print worker,infl,0,theta_i[infl]
+            # T_j_0 = worker_aij[worker_aij[:, 2] == 0][:, 1]
+            # for infl in T_j_0.astype(int):
+            #     if (np.where(new_order == infl)[0].shape[0]) > 0:
+            #         index_infl = np.where(new_order == infl)[0][0]
+            #         new_alpha[worker] += (1 - q_z_i_1_[index_infl])
+            #         new_beta[worker] += q_z_i_1_[index_infl]
+            #     #print worker,infl,0,theta_i[infl]
 
         for worker in range(0, n_workers):
             n_update, change = update(alpha[worker], new_alpha[worker],n_update,change)
@@ -161,8 +173,7 @@ def e_step(y_train, n_workers, q_z_i_0, q_z_i_1, annotation_matrix, alpha, beta,
             n_update, change = update(beta[worker], new_beta[worker],n_update,change)
             beta[worker] = new_beta[worker]
         avg_change = change * 1.0 / n_update
-        # avg of array
-        if (avg_change.sum()/NUMBER_OF_LABELS) < 0.01:
+        if avg_change < 0.01:
             break
         #print "qz1", q_z_i_1
         #print "alpha", alpha
@@ -170,21 +181,10 @@ def e_step(y_train, n_workers, q_z_i_0, q_z_i_1, annotation_matrix, alpha, beta,
         return q_z_i_0_,q_z_i_1_,alpha,beta
 
 def m_step(nn_em,q_z_i_0,q_z_i_1, classifier, social_features, total_epochs, steps, y_test, y_val,start_val,alpha, beta):
-    #print prob_e_step
-    # prob_e_step = np.where(q_z_i_0 > 0.5, 0, 1)
     theta_i, classifier, weights = nn_em.train_m_step(classifier, social_features,
                                                       q_z_i_1,
                                                       steps, total_epochs, y_test, y_val,start_val)
-    # n_neurons = 3
-    # nb_layers = 0
-    # training_epochs = 20
-    # display_step = 10
-    # batch_size = 1
-    # n_input = worker_data.shape[1]
-    # alpha_prime_res, beta_prime_res = optimize_rj(worker_data, n_neurons, nb_layers, training_epochs, display_step,
-    #                                               batch_size, n_input, alpha, beta)
-    # alpha = alpha_prime_res
-    # beta = beta_prime_res
+
     return theta_i,classifier
 
 
@@ -198,7 +198,6 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
                                                         test_size=(1 - supervision_rate), shuffle=False)
     X_val, X_test, y_val, y_test = train_test_split(X_test, y_test, test_size=0.5, shuffle=False)
 
-    # classifier = nn_em_in.define_nn(n_neurons, hidden, m_feats, nb_hidden_layer, 0.001)
     n_neurons = int((NUMBER_OF_LABELS + m_feats)/2)
 
     classifier = nn_em_in.define_multiclass_nn(n_neurons,m_feats,NUMBER_OF_LABELS)
@@ -225,61 +224,32 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
         if steps_it0 % 10 == 0:
             print("epoch", steps_it0, " convergence:", LA.norm(theta_i - old_theta_i), \
                 "val", eval_model_val, "test", eval_model_test)
+            # print('val:')
+            # print(classification_report(y_val_label, theta_i_val_label, target_names=LABEL_NAMES))
+            # print('test:')
+            # print(classification_report(y_test_label, theta_i_test_label, target_names=LABEL_NAMES))
         steps_it0 += 1
 
     weights = classifier.get_weights()
     pd.DataFrame(np.concatenate((column_names[1:], weights[0]), axis=1)).to_csv(weights_before_em, encoding="utf-8")
 
-    eval_model_test = accuracy_score(y_test_label, theta_i_test_label)
-    eval_model_val = accuracy_score(y_val_label, theta_i_val_label)
     start_val = X_train.shape[0]
     end_val = X_train.shape[0] + X_val.shape[0]
-
 
     auc_val = roc_auc_score(y_val, theta_i_val,multi_class="ovo",average="macro")
     auc_test = roc_auc_score(y_test, theta_i_test,multi_class="ovo",average="macro")
 
-    #auc_test = 0
-    # TODO: add multiclass metric
-    # precision_val_theta, recall_val_theta, thresholds_val_theta = precision_recall_curve(y_val,
-    #                                                                                      theta_i_val)
-    # precision_test_theta, recall_test_theta, thresholds_test_theta = precision_recall_curve(y_test, theta_i_test)
+    print('Classification Repport for validation set:\n', classification_report(y_val_label, theta_i_val_label, target_names=LABEL_NAMES))
+    print('auc_val:', auc_val)
+    print('Classification Repport for test set:\n', classification_report(y_test_label, theta_i_test_label, target_names=LABEL_NAMES))
+    print('auc_test:', auc_test)
 
-    # auprc_val_theta = metrics.auc(precision_val_theta, recall_val_theta, reorder=True)
-    # auprc_test_theta = metrics.auc(precision_test_theta, recall_test_theta, reorder=True)
-
-    scores_val_theta = precision_recall_fscore_support(y_val_label, theta_i_val_label)
-    scores_test_theta = precision_recall_fscore_support(y_test_label, theta_i_test_label)
-    head = "nb iteration,accuracy validation,accuracy test,auc val,auc test,auprc val, auprc test,precision val 0,precision val 1,\
-    precision test 0,precision test 1,recall val 0, recall val 1,recall test 0, recall test 1,\
-    F1 val 0, F1 val 1,F1 test 0, F1 test 1,accuracy validation_theta,accuracy test_theta,auc val_theta,auc test_theta,\
-    auprc val_theta, auprc test_theta,precision val_theta 0,precision val_theta 1, \
-    precision test_theta 0,precision test_theta 1,recall val_theta 0, recall val_theta 1,recall test_theta 0, recall test_theta 1,\
-    F1 val_theta 0, F1 val_theta 1,F1 test_theta 0, F1 test_theta 1"
-    scores = str(-1) + ',0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,' + str(eval_model_val) + ',' + str(
-        eval_model_test) + ',' + str(auc_val) + ',' + str(auc_test) + ',' + \
-        str(scores_val_theta[0][0]) + ',' + str(
-        scores_val_theta[0][1]) + ',' + \
-             str(scores_test_theta[0][0]) + ',' + str(scores_test_theta[0][1]) + ',' + str(
-        scores_val_theta[1][0]) + ',' + str(scores_val_theta[1][1]) + ',' + \
-             str(scores_test_theta[1][0]) + ',' + str(scores_test_theta[1][1]) + ',' + str(
-        scores_val_theta[2][0]) + ',' + str(scores_val_theta[2][1]) + ',' + \
-             str(scores_test_theta[2][0]) + ',' + str(scores_test_theta[2][1])
-    print(scores)
-    with open(evaluation_file, 'a') as file:
-        file.write("supervision rate," + str(supervision_rate))
-        file.write('\n')
-        file.write(head)
-        file.write('\n')
-        file.write(scores)
-        file.write('\n')
     theta_i = np.concatenate((y_train, theta_i_val, theta_i_test))
     theta_quality = np.concatenate((true_labels, theta_i), axis=1)
-    # TODO: add column names
     pd.DataFrame(theta_quality).to_csv(theta_file, index=False)
 
     social_features = social_features_labeled
-
+    
     em_step = 0
     while em_step < iterr:
         # variational E step
@@ -291,8 +261,8 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
         em_step += 1
         q_z_i_0_val_label = np.argmax(q_z_i_0[start_val:end_val],axis=1)
         q_z_i_0_test_label = np.argmax(q_z_i_0[end_val:],axis=1)
-        eval_model_val = accuracy_score(y_val_label, q_z_i_0_val_label)
-        eval_model_test = accuracy_score(y_test_label, q_z_i_0_test_label)
+        # eval_model_val = accuracy_score(y_val_label, q_z_i_0_val_label)
+        # eval_model_test = accuracy_score(y_test_label, q_z_i_0_test_label)
 
         q_z_i_1_val_label = np.argmax(q_z_i_1[start_val:end_val],axis=1)
         q_z_i_1_test_label = np.argmax(q_z_i_1[end_val:],axis=1)
@@ -304,46 +274,43 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
         theta_i_val_label = np.argmax(theta_i[start_val:end_val],axis=1)
         theta_i_test_label = np.argmax(theta_i[end_val:],axis=1)
 
-        eval_model_val_theta = accuracy_score(y_val_label, theta_i_val_label)
-        eval_model_test_theta = accuracy_score(y_test_label, theta_i_test_label)
+        # eval_model_val_theta = accuracy_score(y_val_label, theta_i_val_label)
+        # eval_model_test_theta = accuracy_score(y_test_label, theta_i_test_label)
         auc_val_theta = roc_auc_score(y_val, theta_i[start_val:end_val],multi_class="ovo",average="macro")
         auc_test_theta = roc_auc_score(y_test_label, theta_i[end_val:],multi_class="ovo",average="macro")
         #auc_test_theta = 0
-        # TODO: add multiclass metric
-        # precision_val, recall_val, thresholds_val = precision_recall_curve(y_val, q_z_i_1[strat_val:end_val])
-        # precision_test, recall_test, thresholds_test = precision_recall_curve(y_test, q_z_i_1[end_val:])
 
-        # auprc_val = metrics.auc(precision_val, recall_val,reorder=True)
-        # auprc_test = metrics.auc(precision_test, recall_test,reorder=True)
+        # scores_val = precision_recall_fscore_support(y_val_label, q_z_i_1_val_label)
+        # scores_test = precision_recall_fscore_support(y_test_label, q_z_i_1_test_label)
 
-        scores_val = precision_recall_fscore_support(y_val_label, q_z_i_1_val_label)
-        scores_test = precision_recall_fscore_support(y_test_label, q_z_i_1_test_label)
+        # scores_val_theta = precision_recall_fscore_support(y_val_label, theta_i_val_label)
+        # scores_test_theta = precision_recall_fscore_support(y_test_label, theta_i_test_label)
 
-        # TODO: add multiclass metric
-        # precision_val_theta, recall_val_theta, thresholds_val_theta = precision_recall_curve(y_val, theta_i[strat_val:end_val])
-        # precision_test_theta, recall_test_theta, thresholds_test_theta = precision_recall_curve(y_test, theta_i[end_val:])
+        print('Classification Repport for validation set:\n', classification_report(y_val_label, q_z_i_1_val_label, target_names=LABEL_NAMES))
+        print('auc_val:', auc_val)
+        print('Classification Repport for test set:\n', classification_report(y_test_label, q_z_i_1_test_label, target_names=LABEL_NAMES))
+        print('auc_test:', auc_test)
 
-        # auprc_val_theta = metrics.auc(precision_val_theta, recall_val_theta,reorder=True)
-        # auprc_test_theta = metrics.auc(precision_test_theta, recall_test_theta,reorder=True)
+        print('Classification Repport for validation set (theta):\n', classification_report(y_val_label, theta_i_val_label, target_names=LABEL_NAMES))
+        print('auc_val_theta:', auc_val_theta)
+        print('Classification Repport for test set (theta):\n', classification_report(y_test_label, theta_i_test_label, target_names=LABEL_NAMES))
+        print('auc_test_theta:', auc_test_theta)
 
-        scores_val_theta = precision_recall_fscore_support(y_val_label, theta_i_val_label)
-        scores_test_theta = precision_recall_fscore_support(y_test_label, theta_i_test_label)
-
-        print("\n\n")
-        scores= str(em_step)+','+ str(eval_model_val) +','+str(eval_model_test)+','+str(auc_val) +','+ str(auc_test)+','+\
-                str(scores_val[0][0])+','+str(scores_val[0][1])+','+ \
-                str(scores_test[0][0])+','+str(scores_test[0][1])+','+str(scores_val[1][0])+','+str(scores_val[1][1])+','+\
-                str(scores_test[1][0])+','+str(scores_test[1][1])+','+str(scores_val[2][0])+','+ str(scores_val[2][1])+','+ \
-                str(scores_test[2][0])+','+str(scores_test[2][1])+','+str(eval_model_val_theta) +','+str(eval_model_test_theta)+','+\
-                str(auc_val_theta) +','+ str(auc_test_theta)+','+\
-                str(scores_val_theta[0][0])+','+str(scores_val_theta[0][1])+','+\
-                str(scores_test_theta[0][0])+','+str(scores_test_theta[0][1])+','+str(scores_val_theta[1][0])+','+str(scores_val_theta[1][1])+','+\
-                str(scores_test_theta[1][0])+','+str(scores_test_theta[1][1])+','+str(scores_val_theta[2][0])+','+ str(scores_val_theta[2][1])+','+ \
-                str(scores_test_theta[2][0])+','+str(scores_test_theta[2][1])
-        print(scores)
-        with open(evaluation_file, 'a') as file:
-            file.write(scores)
-            file.write('\n')
+        # print("\n\n")
+        # scores= str(em_step)+','+ str(eval_model_val) +','+str(eval_model_test)+','+str(auc_val) +','+ str(auc_test)+','+\
+        #         str(scores_val[0][0])+','+str(scores_val[0][1])+','+ \
+        #         str(scores_test[0][0])+','+str(scores_test[0][1])+','+str(scores_val[1][0])+','+str(scores_val[1][1])+','+\
+        #         str(scores_test[1][0])+','+str(scores_test[1][1])+','+str(scores_val[2][0])+','+ str(scores_val[2][1])+','+ \
+        #         str(scores_test[2][0])+','+str(scores_test[2][1])+','+str(eval_model_val_theta) +','+str(eval_model_test_theta)+','+\
+        #         str(auc_val_theta) +','+ str(auc_test_theta)+','+\
+        #         str(scores_val_theta[0][0])+','+str(scores_val_theta[0][1])+','+\
+        #         str(scores_test_theta[0][0])+','+str(scores_test_theta[0][1])+','+str(scores_val_theta[1][0])+','+str(scores_val_theta[1][1])+','+\
+        #         str(scores_test_theta[1][0])+','+str(scores_test_theta[1][1])+','+str(scores_val_theta[2][0])+','+ str(scores_val_theta[2][1])+','+ \
+        #         str(scores_test_theta[2][0])+','+str(scores_test_theta[2][1])
+        # print(scores)
+        # with open(evaluation_file, 'a') as file:
+        #     file.write(scores)
+        #     file.write('\n')
 
     weights = classifier.get_weights()
     pd.DataFrame(np.concatenate((column_names[1:], weights[0]), axis=1)).to_csv(weights_after_em, encoding="utf-8")
@@ -540,10 +507,8 @@ if __name__ == '__main__':
         # worker_aij_s = worker_aij.copy()
         worker_aij_s = np.empty((0, 2 + NUMBER_OF_LABELS), int)
         for i in range(0, n_infls_label):
-            # TODO correct?
             if worker_aij[worker_aij[:, 1] == new_order[i]].size > 0:
                 worker_aij_s = np.concatenate((worker_aij_s, worker_aij[worker_aij[:, 1] == new_order[i]]))
-                # worker_aij_s[i, :] = worker_aij[worker_aij[:, 1] == new_order[i]]
             else:
                 no_answer = np.zeros(2 + NUMBER_OF_LABELS, dtype = int)
                 no_answer[0] = worker
