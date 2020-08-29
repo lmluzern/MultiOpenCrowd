@@ -23,15 +23,16 @@ import argparse
 
 LABEL_NAMES = ['emerging', 'established', 'no_option']
 NUMBER_OF_LABELS = len(LABEL_NAMES)
+LABEL_INDEX = np.array(range(0,NUMBER_OF_LABELS))
 
 
 def init_probabilities(n_infls):
     # initialize probability z_i (item's quality) randomly
-    qz1 = (1.0/NUMBER_OF_LABELS) * np.ones((n_infls, NUMBER_OF_LABELS))
+    qz = (1.0/NUMBER_OF_LABELS) * np.ones((n_infls, NUMBER_OF_LABELS))
     # initialize probability alpha beta (worker's reliability)
     A = 2
     B = 2
-    return qz1, qz1.copy(), A, B
+    return qz, A, B
 
 
 def init_alpha_beta(A, B, n_workers):
@@ -45,7 +46,9 @@ def init_alpha_beta(A, B, n_workers):
 
 def update(a, b,n_update,change):
     n_update += 1
-    change += np.abs(a - b).sum()
+    change += np.abs(a - b).sum()/a.shape[0]
+
+
     return n_update,change
 
 def optimize_rj(x_train, n_neurons, nb_layers, training_epochs, display_step, batch_size, n_input, alpha, beta):
@@ -99,45 +102,37 @@ def optimize_rj(x_train, n_neurons, nb_layers, training_epochs, display_step, ba
         return alpha_prime_res, beta_prime_res
 
 
-def e_step(y_train, n_workers, q_z_i_0, q_z_i_1, annotation_matrix, alpha, beta, theta_i,true_labels,new_order, max_it=100):
+def e_step(y_train, n_workers, q_z_i, annotation_matrix, alpha, beta, theta_i,true_labels,new_order, max_it=100):
     for it in range(max_it):
         change = 0
         n_update = 0
         # update q(z)
-        #all_workers = np.unique(annotation_matrix[:, 0])
         for infl in new_order.tolist():
             index_infl = np.where(new_order == infl)[0][0]
-            updated_q_z_i_0 = (1 - theta_i[index_infl])
-            updated_q_z_i_1 = theta_i[index_infl]
+            assert infl == index_infl
+            updated_q_z_i = theta_i[index_infl]
             infl_aij = annotation_matrix[annotation_matrix[:, 1] == infl]
-            worker_answer = infl_aij[~np.all(infl_aij[:,2:] == 0, axis=1)]
-            T_i = worker_answer[:, 0]
+            worker_answers = infl_aij[~np.all(infl_aij[:,2:] == 0, axis=1)]
+            T_i = worker_answers[:, 0]
             for worker in T_i.astype(int):
                 #worker_id = np.where(all_workers == worker)
-                label_i = worker_answer[worker_answer[:, 0] == worker][:, 2:]
-                label_i = np.where(label_i[0] == 1)[0][0]
+                w_answer = worker_answers[worker_answers[:, 0] == worker][:, 2:]
+                w_answer_i = np.where(w_answer[0] == 1)[0][0]
                 alpha_val = alpha[worker]
                 beta_val =  beta[worker]
-                updated_q_z_i_0[label_i] = updated_q_z_i_0[label_i] * np.exp(digamma(beta_val) - digamma(alpha_val + beta_val))
-                updated_q_z_i_1[label_i] = updated_q_z_i_1[label_i] * np.exp(digamma(alpha_val) - digamma(alpha_val + beta_val))
 
+                updated_q_z_i[w_answer_i] = updated_q_z_i[w_answer_i] * np.exp(digamma(alpha_val) - digamma(alpha_val + beta_val))
 
-            # T_i_n_all = infl_aij[infl_aij[:, 2] == 0][:, 0]
-            # for worker in T_i_n_all.astype(int):
-            #     #worker_id = np.where(all_workers == worker)
-            #     alpha_val = alpha[worker]
-            #     beta_val =  beta[worker]
-            #     updated_q_z_i_0 = updated_q_z_i_0 * np.exp(digamma(alpha_val) - digamma(alpha_val + beta_val))
-            #     updated_q_z_i_1 = updated_q_z_i_1 * np.exp(digamma(beta_val) - digamma(alpha_val + beta_val))
+                for no_answer_i in np.delete(LABEL_INDEX,w_answer_i):
+                    updated_q_z_i[no_answer_i] = updated_q_z_i[no_answer_i] * np.exp(digamma(beta_val) - digamma(alpha_val + beta_val))
 
-            new_q_z_i_1 = updated_q_z_i_1 * 1.0 / (updated_q_z_i_0 + updated_q_z_i_1)
-            n_update, change = update(q_z_i_1[index_infl], new_q_z_i_1,n_update,change)
+            # normalize
+            new_q_z_i = updated_q_z_i * 1.0 / (updated_q_z_i.sum())
 
-            q_z_i_0[index_infl] = updated_q_z_i_0 * 1.0 / (updated_q_z_i_0 + updated_q_z_i_1)
-            q_z_i_1[index_infl] = updated_q_z_i_1 * 1.0 / (updated_q_z_i_0 + updated_q_z_i_1)
+            n_update, change = update(q_z_i[index_infl], new_q_z_i,n_update,change)
+            q_z_i[index_infl] = new_q_z_i
 
-        q_z_i_1_ = np.concatenate((y_train, q_z_i_1[y_train.shape[0]:]))
-        q_z_i_0_ = np.concatenate((1 - y_train, q_z_i_0[y_train.shape[0]:]))
+        q_z_i = np.concatenate((y_train, q_z_i[y_train.shape[0]:]))
 
         # update q(r)
         new_alpha = np.zeros((n_workers, 1))
@@ -149,23 +144,17 @@ def e_step(y_train, n_workers, q_z_i_0, q_z_i_1, annotation_matrix, alpha, beta,
         for worker in range(0, n_workers):
             worker_aij = annotation_matrix[annotation_matrix[:, 0] == worker]
             # T_j_1 = worker_aij[worker_aij[:,2] == 1][:, 1]
-            T_j_1 = worker_aij[~np.all(worker_aij[:,2:] == 0, axis=1)]
-            for infl in T_j_1[:, 1].astype(int):
+            T_j = worker_aij[~np.all(worker_aij[:,2:] == 0, axis=1)]
+            for infl in T_j[:, 1].astype(int):
                 if (np.where(new_order == infl)[0].shape[0]) > 0:
                     index_infl = np.where(new_order == infl)[0][0]
-                    label_i = T_j_1[T_j_1[:, 1] == infl][:, 2:]
-                    label_i = np.where(label_i[0] == 1)[0][0]
+                    worker_answer = T_j[T_j[:, 1] == infl][:, 2:]
+                    worker_answer_i = np.where(worker_answer[0] == 1)[0][0]
                     assert infl == index_infl
-                    new_alpha[worker] += q_z_i_1_[index_infl][label_i]
-                    new_beta[worker] += 1 - q_z_i_1_[index_infl][label_i]
-                #print worker,infl,1,theta_i[infl]
-            # T_j_0 = worker_aij[worker_aij[:, 2] == 0][:, 1]
-            # for infl in T_j_0.astype(int):
-            #     if (np.where(new_order == infl)[0].shape[0]) > 0:
-            #         index_infl = np.where(new_order == infl)[0][0]
-            #         new_alpha[worker] += (1 - q_z_i_1_[index_infl])
-            #         new_beta[worker] += q_z_i_1_[index_infl]
-            #     #print worker,infl,0,theta_i[infl]
+                    new_alpha[worker] += q_z_i[index_infl][worker_answer_i]
+                    new_beta[worker] += 1 - q_z_i[index_infl][worker_answer_i]
+                else:
+                    assert 1==0
 
         for worker in range(0, n_workers):
             n_update, change = update(alpha[worker], new_alpha[worker],n_update,change)
@@ -173,16 +162,15 @@ def e_step(y_train, n_workers, q_z_i_0, q_z_i_1, annotation_matrix, alpha, beta,
             n_update, change = update(beta[worker], new_beta[worker],n_update,change)
             beta[worker] = new_beta[worker]
         avg_change = change * 1.0 / n_update
+
         if avg_change < 0.01:
             break
-        #print "qz1", q_z_i_1
-        #print "alpha", alpha
-        #print "beta", beta
-        return q_z_i_0_,q_z_i_1_,alpha,beta
 
-def m_step(nn_em,q_z_i_0,q_z_i_1, classifier, social_features, total_epochs, steps, y_test, y_val,start_val,alpha, beta):
+        return q_z_i,alpha,beta
+
+def m_step(nn_em,q_z_i, classifier, social_features, total_epochs, steps, y_test, y_val,start_val,alpha, beta):
     theta_i, classifier, weights = nn_em.train_m_step(classifier, social_features,
-                                                      q_z_i_1,
+                                                      q_z_i,
                                                       steps, total_epochs, y_test, y_val,start_val)
 
     return theta_i,classifier
@@ -191,7 +179,8 @@ def m_step(nn_em,q_z_i_0,q_z_i_1, classifier, social_features, total_epochs, ste
 def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_labeled, true_labels, supervision_rate, \
            column_names, n_neurons, hidden, m_feats, weights_before_em,weights_after_em,iterr,total_epochs,evaluation_file,theta_file,steps,nb_hidden_layer):
     n_infls = n_infls_label
-    q_z_i_0, q_z_i_1, A, B = init_probabilities(n_infls)
+    q_z_i, A, B = init_probabilities(n_infls)
+
     alpha, beta = init_alpha_beta(A, B, n_workers)
 
     X_train, X_test, y_train, y_test = train_test_split(social_features_labeled, true_labels,
@@ -201,9 +190,10 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
     n_neurons = int((NUMBER_OF_LABELS + m_feats)/2)
 
     classifier = nn_em_in.define_multiclass_nn(n_neurons,m_feats,NUMBER_OF_LABELS)
+    print(classifier.summary())
     steps_it0 = 0
     epsilon = 1e-4
-    theta_i = q_z_i_1.copy()
+    theta_i = q_z_i.copy()
     old_theta_i = np.zeros((n_infls, NUMBER_OF_LABELS))
 
     y_val_label = np.argmax(y_val,axis=1)
@@ -211,6 +201,7 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
     y_train_label = np.argmax(y_train,axis=1)
 
     while (LA.norm(theta_i - old_theta_i) > epsilon) and (steps_it0 < total_epochs):
+        old_theta_i = theta_i.copy()
         classifier.fit(X_train, y_train, epochs=steps, verbose=0)
         theta_i_val = classifier.predict(X_val)
         theta_i_test = classifier.predict(X_test)
@@ -253,42 +244,29 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
     em_step = 0
     while em_step < iterr:
         # variational E step
-        q_z_i_0, q_z_i_1, alpha, beta = e_step(y_train, n_workers, q_z_i_0, q_z_i_1, aij_s, alpha,
+        q_z_i, alpha, beta = e_step(y_train, n_workers, q_z_i, aij_s, alpha,
                                                beta, theta_i, true_labels,new_order)
+
         # variational M step
-        theta_i, classifier = m_step(nn_em_in, q_z_i_0,q_z_i_1, classifier, social_features, total_epochs, steps, y_test, y_val,
+        theta_i, classifier = m_step(nn_em_in, q_z_i, classifier, social_features, total_epochs, steps, y_test, y_val,
                                      start_val, alpha, beta)
         em_step += 1
-        q_z_i_0_val_label = np.argmax(q_z_i_0[start_val:end_val],axis=1)
-        q_z_i_0_test_label = np.argmax(q_z_i_0[end_val:],axis=1)
-        # eval_model_val = accuracy_score(y_val_label, q_z_i_0_val_label)
-        # eval_model_test = accuracy_score(y_test_label, q_z_i_0_test_label)
 
-        q_z_i_1_val_label = np.argmax(q_z_i_1[start_val:end_val],axis=1)
-        q_z_i_1_test_label = np.argmax(q_z_i_1[end_val:],axis=1)
+        q_z_i_val_label = np.argmax(q_z_i[start_val:end_val],axis=1)
+        q_z_i_test_label = np.argmax(q_z_i[end_val:],axis=1)
 
-        auc_val = roc_auc_score(y_val, q_z_i_1[start_val:end_val],multi_class="ovo",average="macro")
-        auc_test = roc_auc_score(y_test, q_z_i_1[end_val:],multi_class="ovo",average="macro")
+        auc_val = roc_auc_score(y_val, q_z_i[start_val:end_val],multi_class="ovo",average="macro")
+        auc_test = roc_auc_score(y_test, q_z_i[end_val:],multi_class="ovo",average="macro")
 
-        #auc_test = 0
         theta_i_val_label = np.argmax(theta_i[start_val:end_val],axis=1)
         theta_i_test_label = np.argmax(theta_i[end_val:],axis=1)
 
-        # eval_model_val_theta = accuracy_score(y_val_label, theta_i_val_label)
-        # eval_model_test_theta = accuracy_score(y_test_label, theta_i_test_label)
         auc_val_theta = roc_auc_score(y_val, theta_i[start_val:end_val],multi_class="ovo",average="macro")
         auc_test_theta = roc_auc_score(y_test_label, theta_i[end_val:],multi_class="ovo",average="macro")
-        #auc_test_theta = 0
 
-        # scores_val = precision_recall_fscore_support(y_val_label, q_z_i_1_val_label)
-        # scores_test = precision_recall_fscore_support(y_test_label, q_z_i_1_test_label)
-
-        # scores_val_theta = precision_recall_fscore_support(y_val_label, theta_i_val_label)
-        # scores_test_theta = precision_recall_fscore_support(y_test_label, theta_i_test_label)
-
-        print('Classification Repport for validation set:\n', classification_report(y_val_label, q_z_i_1_val_label, target_names=LABEL_NAMES))
+        print('Classification Repport for validation set:\n', classification_report(y_val_label, q_z_i_val_label, target_names=LABEL_NAMES))
         print('auc_val:', auc_val)
-        print('Classification Repport for test set:\n', classification_report(y_test_label, q_z_i_1_test_label, target_names=LABEL_NAMES))
+        print('Classification Repport for test set:\n', classification_report(y_test_label, q_z_i_test_label, target_names=LABEL_NAMES))
         print('auc_test:', auc_test)
 
         print('Classification Repport for validation set (theta):\n', classification_report(y_val_label, theta_i_val_label, target_names=LABEL_NAMES))
@@ -296,25 +274,9 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
         print('Classification Repport for test set (theta):\n', classification_report(y_test_label, theta_i_test_label, target_names=LABEL_NAMES))
         print('auc_test_theta:', auc_test_theta)
 
-        # print("\n\n")
-        # scores= str(em_step)+','+ str(eval_model_val) +','+str(eval_model_test)+','+str(auc_val) +','+ str(auc_test)+','+\
-        #         str(scores_val[0][0])+','+str(scores_val[0][1])+','+ \
-        #         str(scores_test[0][0])+','+str(scores_test[0][1])+','+str(scores_val[1][0])+','+str(scores_val[1][1])+','+\
-        #         str(scores_test[1][0])+','+str(scores_test[1][1])+','+str(scores_val[2][0])+','+ str(scores_val[2][1])+','+ \
-        #         str(scores_test[2][0])+','+str(scores_test[2][1])+','+str(eval_model_val_theta) +','+str(eval_model_test_theta)+','+\
-        #         str(auc_val_theta) +','+ str(auc_test_theta)+','+\
-        #         str(scores_val_theta[0][0])+','+str(scores_val_theta[0][1])+','+\
-        #         str(scores_test_theta[0][0])+','+str(scores_test_theta[0][1])+','+str(scores_val_theta[1][0])+','+str(scores_val_theta[1][1])+','+\
-        #         str(scores_test_theta[1][0])+','+str(scores_test_theta[1][1])+','+str(scores_val_theta[2][0])+','+ str(scores_val_theta[2][1])+','+ \
-        #         str(scores_test_theta[2][0])+','+str(scores_test_theta[2][1])
-        # print(scores)
-        # with open(evaluation_file, 'a') as file:
-        #     file.write(scores)
-        #     file.write('\n')
-
     weights = classifier.get_weights()
     pd.DataFrame(np.concatenate((column_names[1:], weights[0]), axis=1)).to_csv(weights_after_em, encoding="utf-8")
-    return q_z_i_0, q_z_i_1, alpha, beta, theta_i, classifier
+    return q_z_i, alpha, beta, theta_i, classifier
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -561,7 +523,7 @@ if __name__ == '__main__':
     social_features_labeled = social_features_labeled[:,1:]
     m_feats = m_feats - 1
 
-    q_z_i_0, q_z_i_1, alpha, beta, theta_i, classifier = var_em(nn_em_in,n_infls_label,aij_s,new_order,n_workers,\
+    q_z_i, alpha, beta, theta_i, classifier = var_em(nn_em_in,n_infls_label,aij_s,new_order,n_workers,\
                                                                 social_features_labeled,\
                                                                 true_labels,supervision_rate, column_names,\
                                                                 n_neurons,hidden,m_feats,weights_before_em,weights_after_em,\
@@ -577,7 +539,7 @@ if __name__ == '__main__':
     influencer_quality_file = args.influencer_quality_file
     worker_reliability = np.concatenate((np.arange(n_workers).reshape(n_workers, 1), alpha, beta), axis=1)
     influencer_quality = np.concatenate(
-        (social_features_labeled[:, [0]], true_labels, q_z_i_1, theta_i), axis=1)
+        (social_features_labeled[:, [0]], true_labels, q_z_i, theta_i), axis=1)
     pd.DataFrame(worker_reliability).to_csv(worker_reliability_file, index=False)
     pd.DataFrame(influencer_quality).to_csv(influencer_quality_file, index=False)
         # print(pd.DataFrame(data=np.concatenate([np.where(q_z_i_0 > q_z_i_0.mean(), 0, 1), true_labels], axis=1),
