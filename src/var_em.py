@@ -107,10 +107,11 @@ def e_step(y_train, n_workers, q_z_i, annotation_matrix, alpha, beta, theta_i,tr
         change = 0
         n_update = 0
         # update q(z)
+
         for infl in new_order.tolist():
             index_infl = np.where(new_order == infl)[0][0]
             assert infl == index_infl
-            updated_q_z_i = theta_i[index_infl]
+            updated_q_z_i = theta_i[index_infl].copy()
             infl_aij = annotation_matrix[annotation_matrix[:, 1] == infl]
             worker_answers = infl_aij[~np.all(infl_aij[:,2:] == 0, axis=1)]
             T_i = worker_answers[:, 0]
@@ -128,7 +129,6 @@ def e_step(y_train, n_workers, q_z_i, annotation_matrix, alpha, beta, theta_i,tr
 
             # normalize
             new_q_z_i = updated_q_z_i * 1.0 / (updated_q_z_i.sum())
-
             n_update, change = update(q_z_i[index_infl], new_q_z_i,n_update,change)
             q_z_i[index_infl] = new_q_z_i
 
@@ -166,7 +166,7 @@ def e_step(y_train, n_workers, q_z_i, annotation_matrix, alpha, beta, theta_i,tr
         if avg_change < 0.01:
             break
 
-        return q_z_i,alpha,beta
+    return q_z_i,alpha,beta
 
 def m_step(nn_em,q_z_i, classifier, social_features, total_epochs, steps, y_test, y_val,start_val,alpha, beta):
     theta_i, classifier, weights = nn_em.train_m_step(classifier, social_features,
