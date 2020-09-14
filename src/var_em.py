@@ -1,25 +1,13 @@
 import pandas as pd
-import csv
 import numpy as np
-import tensorflow as tf
-from keras import Sequential
-from keras.layers import Dense
 from keras.callbacks import EarlyStopping
-from math import floor
-from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score
-from sklearn import preprocessing
 from sklearn.model_selection import train_test_split
 from scipy.special import digamma
-from sklearn.preprocessing import StandardScaler
 from numpy import linalg as LA
 from nn_em import nn_em
-import random
 from sklearn.metrics import roc_auc_score
-from sklearn.metrics import precision_recall_fscore_support
-from sklearn.metrics import precision_recall_curve
 from sklearn.metrics import classification_report
-from sklearn import metrics
 import argparse
 from matplotlib import pyplot as plt
 
@@ -52,56 +40,6 @@ def update(a, b,n_update,change):
 
 
     return n_update,change
-
-def optimize_rj(x_train, n_neurons, nb_layers, training_epochs, display_step, batch_size, n_input, alpha, beta):
-    graph1 = tf.Graph()
-    with graph1.as_default():
-        tf.set_random_seed(1)
-        # input layer
-        x = tf.placeholder(tf.float32, [None, n_input])
-        keep_prob = tf.placeholder(tf.float32)
-        layer = x
-        # hideen layers
-        for _ in range(nb_layers):
-            layer = tf.layers.dense(inputs=layer, units=n_neurons, activation=tf.nn.tanh)
-        # output layer
-        alpha_prime = tf.layers.dense(inputs=layer, units=1, activation=lambda x: tf.nn.relu(x) + 1)
-        beta_prime = tf.layers.dense(inputs=layer, units=1, activation=lambda x: tf.nn.relu(x) + 1)
-
-        dist = tf.distributions.Beta(alpha_prime, beta_prime)
-        target_dist = tf.distributions.Beta(alpha, beta)
-
-        loss = tf.distributions.kl_divergence(target_dist, dist)
-        cost = tf.reduce_mean(loss)
-
-        optimizer = tf.train.AdamOptimizer(learning_rate=0.01).minimize(cost)
-
-    with tf.Session(graph=graph1) as sess:
-        sess.run(tf.global_variables_initializer())
-        for epoch in range(training_epochs):
-            avg_cost = 0.0
-            total_batch = int(len(x_train) / batch_size)
-            x_batches = np.array_split(x_train, total_batch)
-            for i in range(total_batch):
-                batch_x = x_batches[i]
-                _, c = sess.run([optimizer, cost],
-                                feed_dict={
-                                    x: batch_x,
-                                    keep_prob: 0.8
-                                })
-                avg_cost += c / total_batch
-            if epoch % display_step == 0:
-                print("Epoch:", '%04d' % (epoch + 1), "cost=", \
-                      "{:.9f}".format(avg_cost))
-        print("Optimization Finished!")
-
-        alpha_prime_res, beta_prime_res = sess.run([alpha_prime, beta_prime],
-                                                   feed_dict={
-                                                       x: x_train,
-                                                       keep_prob: 0.8
-                                                   })
-        print("alpha_prime_res=", alpha_prime_res, "beta_prime_res=", beta_prime_res)
-        return alpha_prime_res, beta_prime_res
 
 
 def e_step(y_train, n_workers, q_z_i, annotation_matrix, alpha, beta, theta_i,true_labels,new_order,y_val,start_val,end_val,max_it=20):
