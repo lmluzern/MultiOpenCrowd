@@ -4,6 +4,7 @@ import numpy as np
 import tensorflow as tf
 from keras import Sequential
 from keras.layers import Dense
+from keras.callbacks import EarlyStopping
 from math import floor
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score
@@ -20,6 +21,7 @@ from sklearn.metrics import precision_recall_curve
 from sklearn.metrics import classification_report
 from sklearn import metrics
 import argparse
+from matplotlib import pyplot as plt
 
 LABEL_NAMES = ['emerging', 'established', 'no_option']
 NUMBER_OF_LABELS = len(LABEL_NAMES)
@@ -102,17 +104,23 @@ def optimize_rj(x_train, n_neurons, nb_layers, training_epochs, display_step, ba
         return alpha_prime_res, beta_prime_res
 
 
-def e_step(y_train, n_workers, q_z_i, annotation_matrix, alpha, beta, theta_i,true_labels,new_order, max_it=100):
+def e_step(y_train, n_workers, q_z_i, annotation_matrix, alpha, beta, theta_i,true_labels,new_order,y_val,start_val,end_val,max_it=20):
+    old_q_z_i = theta_i.copy()
+    old_alpha = alpha.copy()
+    old_beta = beta.copy()
+    diff = []
+    train_acc = []
+    y_val_label = np.argmax(y_val,axis=1)
+
+    # theta_i = np.concatenate((y_train, theta_i[y_train.shape[0]:]))
     for it in range(max_it):
-        change = 0
-        n_update = 0
         # update q(z)
 
         for infl in new_order.tolist():
             index_infl = np.where(new_order == infl)[0][0]
             assert infl == index_infl
             updated_q_z_i = theta_i[index_infl].copy()
-            infl_aij = annotation_matrix[annotation_matrix[:, 1] == infl]
+            infl_aij = annotation_matrix[annotation_matrix[:, 1] == infl].copy()
             worker_answers = infl_aij[~np.all(infl_aij[:,2:] == 0, axis=1)]
             T_i = worker_answers[:, 0]
             for worker in T_i.astype(int):
@@ -129,8 +137,7 @@ def e_step(y_train, n_workers, q_z_i, annotation_matrix, alpha, beta, theta_i,tr
 
             # normalize
             new_q_z_i = updated_q_z_i * 1.0 / (updated_q_z_i.sum())
-            n_update, change = update(q_z_i[index_infl], new_q_z_i,n_update,change)
-            q_z_i[index_infl] = new_q_z_i
+            q_z_i[index_infl] = new_q_z_i.copy()
 
         q_z_i = np.concatenate((y_train, q_z_i[y_train.shape[0]:]))
 
@@ -142,7 +149,7 @@ def e_step(y_train, n_workers, q_z_i, annotation_matrix, alpha, beta, theta_i,tr
             new_beta[worker] = beta[worker]
 
         for worker in range(0, n_workers):
-            worker_aij = annotation_matrix[annotation_matrix[:, 0] == worker]
+            worker_aij = annotation_matrix[annotation_matrix[:, 0] == worker].copy()
             # T_j_1 = worker_aij[worker_aij[:,2] == 1][:, 1]
             T_j = worker_aij[~np.all(worker_aij[:,2:] == 0, axis=1)]
             for infl in T_j[:, 1].astype(int):
@@ -157,22 +164,40 @@ def e_step(y_train, n_workers, q_z_i, annotation_matrix, alpha, beta, theta_i,tr
                     assert 1==0
 
         for worker in range(0, n_workers):
-            n_update, change = update(alpha[worker], new_alpha[worker],n_update,change)
             alpha[worker] = new_alpha[worker]
-            n_update, change = update(beta[worker], new_beta[worker],n_update,change)
             beta[worker] = new_beta[worker]
-        avg_change = change * 1.0 / n_update
 
-        if avg_change < 0.01:
+        q_z_i_change = LA.norm(old_q_z_i - q_z_i)
+        # da = LA.norm(old_alpha - alpha)
+        # db = LA.norm(old_beta - beta)
+        # da = LA.norm(old_alpha - alpha)
+        # db = LA.norm(old_beta - beta)
+
+        old_q_z_i = q_z_i.copy()
+        old_alpha = alpha.copy()
+        old_beta = beta.copy()
+
+        q_z_i_val_label = np.argmax(q_z_i[start_val:end_val],axis=1)
+        q_z_i_acc = accuracy_score(y_val_label,q_z_i_val_label)
+
+        diff.append(q_z_i_change)
+        train_acc.append(q_z_i_acc)
+
+
+        if q_z_i_change < 0.1:
             break
 
+    # plt.clf()
+    # plt.plot(diff, marker='o', label='change')
+    # plt.plot(train_acc, marker='o', label='accuracy')
+    # plt.legend()
+    # plt.show()
     return q_z_i,alpha,beta
 
-def m_step(nn_em,q_z_i, classifier, social_features, total_epochs, steps, y_test, y_val,start_val,alpha, beta):
-    theta_i, classifier, weights = nn_em.train_m_step(classifier, social_features,
+def m_step(nn_em,q_z_i, classifier, social_features, total_epochs, steps, y_test, y_val,X_val,start_val,alpha, beta):
+    theta_i, classifier, weights = nn_em.train_m_step_early_stopp(classifier, social_features,
                                                       q_z_i,
-                                                      steps, total_epochs, y_test, y_val,start_val)
-
+                                                      steps, total_epochs, y_test, y_val,X_val,start_val)
     return theta_i,classifier
 
 
@@ -200,27 +225,38 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
     y_test_label = np.argmax(y_test,axis=1)
     y_train_label = np.argmax(y_train,axis=1)
 
-    while (LA.norm(theta_i - old_theta_i) > epsilon) and (steps_it0 < total_epochs):
-        old_theta_i = theta_i.copy()
-        classifier.fit(X_train, y_train, epochs=steps, verbose=0)
-        theta_i_val = classifier.predict(X_val)
-        theta_i_test = classifier.predict(X_test)
+    monitor = EarlyStopping(monitor='val_loss', min_delta=1e-3, patience=10, 
+                        verbose=0, mode='auto', restore_best_weights=True)
 
-        theta_i_val_label = np.argmax(theta_i_val,axis=1)
-        theta_i_test_label = np.argmax(theta_i_test,axis=1) 
+    classifier.fit(X_train, y_train, validation_data=(X_val,y_val), callbacks=[monitor], verbose=2, epochs=100, batch_size=4)
+    theta_i_val = classifier.predict(X_val)
+    theta_i_test = classifier.predict(X_test)
 
-        theta_i = np.concatenate((y_train, theta_i_val, theta_i_test))
-        eval_model_test = accuracy_score(y_test_label, theta_i_test_label)
-        eval_model_val = accuracy_score(y_val_label, theta_i_val_label)
-        if steps_it0 % 10 == 0:
-            print("epoch", steps_it0, " convergence:", LA.norm(theta_i - old_theta_i), \
-                "val", eval_model_val, "test", eval_model_test)
-            # print('val:')
-            # print(classification_report(y_val_label, theta_i_val_label, target_names=LABEL_NAMES))
-            # print('test:')
-            # print(classification_report(y_test_label, theta_i_test_label, target_names=LABEL_NAMES))
-        steps_it0 += 1
+    theta_i_val_label = np.argmax(theta_i_val,axis=1)
+    theta_i_test_label = np.argmax(theta_i_test,axis=1)
 
+    # while (LA.norm(theta_i - old_theta_i) > epsilon) and (steps_it0 < total_epochs):
+    #     old_theta_i = theta_i.copy()
+    #     classifier.fit(X_train, y_train, epochs=steps, verbose=0)
+    #     theta_i_val = classifier.predict(X_val)
+    #     theta_i_test = classifier.predict(X_test)
+
+    #     theta_i_val_label = np.argmax(theta_i_val,axis=1)
+    #     theta_i_test_label = np.argmax(theta_i_test,axis=1) 
+
+    #     theta_i = np.concatenate((y_train, theta_i_val, theta_i_test))
+    #     eval_model_test = accuracy_score(y_test_label, theta_i_test_label)
+    #     eval_model_val = accuracy_score(y_val_label, theta_i_val_label)
+    #     if steps_it0 % 10 == 0:
+    #         print("epoch", steps_it0, " convergence:", LA.norm(theta_i - old_theta_i), \
+    #             "val", eval_model_val, "test", eval_model_test)
+    #         # print('val:')
+    #         # print(classification_report(y_val_label, theta_i_val_label, target_names=LABEL_NAMES))
+    #         # print('test:')
+    #         # print(classification_report(y_test_label, theta_i_test_label, target_names=LABEL_NAMES))
+    #     steps_it0 += 1
+
+    
     weights = classifier.get_weights()
     pd.DataFrame(np.concatenate((column_names[1:], weights[0]), axis=1)).to_csv(weights_before_em, encoding="utf-8")
 
@@ -241,14 +277,19 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
 
     social_features = social_features_labeled
     
+    eval_model_theta_test = [] 
+    eval_model_theta_val = []
+    eval_model_test = []
+    eval_model_val = []
+
     em_step = 0
     while em_step < iterr:
         # variational E step
         q_z_i, alpha, beta = e_step(y_train, n_workers, q_z_i, aij_s, alpha,
-                                               beta, theta_i, true_labels,new_order)
+                                               beta, theta_i, true_labels,new_order,y_val,start_val,end_val)
 
         # variational M step
-        theta_i, classifier = m_step(nn_em_in, q_z_i, classifier, social_features, total_epochs, steps, y_test, y_val,
+        theta_i, classifier = m_step(nn_em_in, q_z_i, classifier, social_features, total_epochs, steps, y_test, y_val, X_val,
                                      start_val, alpha, beta)
         em_step += 1
 
@@ -264,6 +305,12 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
         auc_val_theta = roc_auc_score(y_val, theta_i[start_val:end_val],multi_class="ovo",average="macro")
         auc_test_theta = roc_auc_score(y_test_label, theta_i[end_val:],multi_class="ovo",average="macro")
 
+        eval_model_theta_test.append(accuracy_score(y_test_label, theta_i_test_label))
+        eval_model_theta_val.append(accuracy_score(y_val_label, theta_i_val_label))
+
+        eval_model_test.append(accuracy_score(y_test_label, q_z_i_test_label))
+        eval_model_val.append(accuracy_score(y_val_label, q_z_i_val_label))
+
         print('Classification Repport for validation set:\n', classification_report(y_val_label, q_z_i_val_label, target_names=LABEL_NAMES))
         print('auc_val:', auc_val)
         print('Classification Repport for test set:\n', classification_report(y_test_label, q_z_i_test_label, target_names=LABEL_NAMES))
@@ -274,6 +321,13 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
         print('Classification Repport for test set (theta):\n', classification_report(y_test_label, theta_i_test_label, target_names=LABEL_NAMES))
         print('auc_test_theta:', auc_test_theta)
 
+    
+    plt.plot(eval_model_theta_test, marker='o', label='eval_model_theta_test')
+    plt.plot(eval_model_theta_val, marker='o', label='eval_model_theta_val')
+    plt.plot(eval_model_test, marker='o', label='eval_model_test')
+    plt.plot(eval_model_val, marker='o', label='eval_model_val')
+    plt.legend()
+    plt.show()
     weights = classifier.get_weights()
     pd.DataFrame(np.concatenate((column_names[1:], weights[0]), axis=1)).to_csv(weights_after_em, encoding="utf-8")
     return q_z_i, alpha, beta, theta_i, classifier
