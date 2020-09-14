@@ -3,6 +3,7 @@ import csv
 import numpy as np
 from keras import Sequential
 from keras.layers import Dense
+from keras.callbacks import EarlyStopping
 from sklearn.preprocessing import StandardScaler
 
 from keras import backend as K
@@ -82,6 +83,23 @@ class nn_em:
         theta_i = classifier.predict(social_features)
         weights = classifier.get_weights()
         return theta_i, weights[0],classifier
+
+    def train_m_step_early_stopp(self, classifier, social_features, prob_e_step,
+                       steps, total_epochs, y_test, y_val, X_val, start_val):
+        monitor = EarlyStopping(monitor='val_loss', min_delta=1e-3, patience=10, 
+                        verbose=0, mode='auto', restore_best_weights=True)
+
+        classifier.fit(social_features, prob_e_step, validation_data=(X_val,y_val),
+          callbacks=[monitor],verbose=2,epochs=100, batch_size=4)
+        theta_i = classifier.predict(social_features)
+        weights = classifier.get_weights()[0]
+
+
+        theta_i, weights, classifier = self.nn_pzi_test_val(classifier, social_features, prob_e_step, steps)
+
+
+
+        return theta_i,classifier, weights
 
     def train_m_step(self, classifier, social_features, prob_e_step,
                        steps, total_epochs, y_test, y_val,start_val):
