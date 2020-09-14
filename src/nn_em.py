@@ -94,11 +94,6 @@ class nn_em:
         theta_i = classifier.predict(social_features)
         weights = classifier.get_weights()[0]
 
-
-        theta_i, weights, classifier = self.nn_pzi_test_val(classifier, social_features, prob_e_step, steps)
-
-
-
         return theta_i,classifier, weights
 
     def train_m_step(self, classifier, social_features, prob_e_step,
