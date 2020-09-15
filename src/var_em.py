@@ -61,6 +61,7 @@ def e_step(y_train, n_workers, q_z_i, annotation_matrix, alpha, beta, theta_i,tr
             updated_q_z_i = theta_i[index_infl].copy()
             infl_aij = annotation_matrix[annotation_matrix[:, 1] == infl].copy()
             worker_answers = infl_aij[~np.all(infl_aij[:,2:] == 0, axis=1)]
+            worker_n_answers = infl_aij[np.all(infl_aij[:,2:] == 0, axis=1)]
             T_i = worker_answers[:, 0]
             for worker in T_i.astype(int):
                 #worker_id = np.where(all_workers == worker)
@@ -68,10 +69,17 @@ def e_step(y_train, n_workers, q_z_i, annotation_matrix, alpha, beta, theta_i,tr
                 w_answer_i = np.where(w_answer[0] == 1)[0][0]
                 alpha_val = alpha[worker]
                 beta_val =  beta[worker]
-
+                
                 updated_q_z_i[w_answer_i] = updated_q_z_i[w_answer_i] * np.exp(digamma(alpha_val) - digamma(alpha_val + beta_val))
 
                 for no_answer_i in np.delete(LABEL_INDEX,w_answer_i):
+                    updated_q_z_i[no_answer_i] = updated_q_z_i[no_answer_i] * np.exp(digamma(beta_val) - digamma(alpha_val + beta_val))
+
+            T_i_n = worker_n_answers[:, 0]
+            for worker in T_i_n.astype(int):
+                alpha_val = alpha[worker]
+                beta_val =  beta[worker]
+                for no_answer_i in LABEL_INDEX:
                     updated_q_z_i[no_answer_i] = updated_q_z_i[no_answer_i] * np.exp(digamma(beta_val) - digamma(alpha_val + beta_val))
 
             # normalize
@@ -91,16 +99,19 @@ def e_step(y_train, n_workers, q_z_i, annotation_matrix, alpha, beta, theta_i,tr
             worker_aij = annotation_matrix[annotation_matrix[:, 0] == worker].copy()
             # T_j_1 = worker_aij[worker_aij[:,2] == 1][:, 1]
             T_j = worker_aij[~np.all(worker_aij[:,2:] == 0, axis=1)]
+            T_j_n = worker_aij[np.all(worker_aij[:,2:] == 0, axis=1)]
             for infl in T_j[:, 1].astype(int):
-                if (np.where(new_order == infl)[0].shape[0]) > 0:
-                    index_infl = np.where(new_order == infl)[0][0]
-                    worker_answer = T_j[T_j[:, 1] == infl][:, 2:]
-                    worker_answer_i = np.where(worker_answer[0] == 1)[0][0]
-                    assert infl == index_infl
-                    new_alpha[worker] += q_z_i[index_infl][worker_answer_i]
-                    new_beta[worker] += 1 - q_z_i[index_infl][worker_answer_i]
-                else:
-                    assert 1==0
+                index_infl = np.where(new_order == infl)[0][0]
+                assert infl == index_infl
+                worker_answer = T_j[T_j[:, 1] == infl][:, 2:]
+                worker_answer_i = np.where(worker_answer[0] == 1)[0][0]
+                new_alpha[worker] += q_z_i[index_infl][worker_answer_i]
+                new_beta[worker] += 1 - q_z_i[index_infl][worker_answer_i]
+
+            for infl in T_j_n[:, 1].astype(int):
+                    new_alpha[worker] += NUMBER_OF_LABELS -1
+                    new_beta[worker] += 1
+
 
         for worker in range(0, n_workers):
             alpha[worker] = new_alpha[worker]
@@ -122,6 +133,7 @@ def e_step(y_train, n_workers, q_z_i, annotation_matrix, alpha, beta, theta_i,tr
         diff.append(q_z_i_change)
         train_acc.append(q_z_i_acc)
 
+        print(it, q_z_i_change)
 
         if q_z_i_change < 0.1:
             break
