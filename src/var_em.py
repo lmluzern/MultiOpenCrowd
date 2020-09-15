@@ -10,6 +10,7 @@ from sklearn.metrics import roc_auc_score
 from sklearn.metrics import classification_report
 import argparse
 from matplotlib import pyplot as plt
+import random
 
 LABEL_NAMES = ['emerging', 'established', 'no_option']
 NUMBER_OF_LABELS = len(LABEL_NAMES)
@@ -473,19 +474,17 @@ if __name__ == '__main__':
     all_workers = np.unique(annotation_matrix[:, 0])
 
     aij_s = np.empty((0, 2 + NUMBER_OF_LABELS), int)
-    aij_s = aij
 
-    # for worker in all_workers:
-    #     worker_aij = annotation_matrix[annotation_matrix[:, 0] == worker]
-    #     T_w = worker_aij[worker_aij[:, 2] == 1]
-    #     T_w_n_all = worker_aij[worker_aij[:, 2] == 0]
-    #     if int(T_w.shape[0] * sampling_rate) < T_w_n_all.shape[0]:
-    #         indices = random.sample(range(T_w_n_all.shape[0]), int(T_w.shape[0] * sampling_rate))
-    #     else:
-    #         indices = random.sample(range(T_w_n_all.shape[0]), T_w_n_all.shape[0])
-    #     T_w_n = T_w_n_all[indices, :]
-    #     aij_s = np.concatenate((aij_s, T_w, T_w_n))
-
+    for worker in all_workers:
+        worker_aij = aij[aij[:, 0] == worker]
+        T_w = worker_aij[~np.all(worker_aij[:,2:] == 0, axis=1)]
+        T_w_n_all = worker_aij[np.all(worker_aij[:,2:] == 0, axis=1)]
+        if int(T_w.shape[0] * sampling_rate) < T_w_n_all.shape[0]:
+            indices = random.sample(range(T_w_n_all.shape[0]), int(T_w.shape[0] * sampling_rate))
+        else:
+            indices = random.sample(range(T_w_n_all.shape[0]), T_w_n_all.shape[0])
+        T_w_n = T_w_n_all[indices, :]
+        aij_s = np.concatenate((aij_s, T_w, T_w_n))
 
     # size_train = int(supervision_rate * n_infls_label)
     # percentage_train = 0
