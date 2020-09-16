@@ -90,7 +90,7 @@ class nn_em:
                         verbose=0, mode='auto', restore_best_weights=True)
 
         classifier.fit(social_features, prob_e_step, validation_data=(X_val,y_val),
-          callbacks=[monitor],verbose=2,epochs=100, batch_size=4)
+          callbacks=[monitor],verbose=0,epochs=total_epochs, batch_size=4)
         theta_i = classifier.predict(social_features)
         weights = classifier.get_weights()[0]
 

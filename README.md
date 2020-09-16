@@ -1,4 +1,4 @@
-# OpenCrowd
+# Multiclass Classification of Open-ended Answers using OpenCrowd
 
 ### Installation
 This package requires python3. To install python3, please check the official python website
@@ -9,17 +9,11 @@ https://www.python.org/downloads/
 ``` bash 
 $ pip3 install pandas keras sklearn tensorflow
 ```
-To run the example script provided (in the scripts folder), you need to grant the file execution permissions
-
-``` bash 
-$ chmod u+x simple_example.sh
-```
 
 ## Usage
-You can use the script provided in scripts to apply OpenCrowd on a simple example:
+You can use the var_em.py script provided in src to apply Multiclass OpenCrowd on the provided data set:
 ``` bash
-cd scripts
- ./simple_example.sh
+python3 src/var_em.py
 ```
 
 ## Citation

@@ -8,9 +8,9 @@ from numpy import linalg as LA
 from nn_em import nn_em
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import classification_report
-import argparse
 from matplotlib import pyplot as plt
 import random
+import arguments
 
 LABEL_NAMES = ['emerging', 'established', 'no_option']
 NUMBER_OF_LABELS = len(LABEL_NAMES)
@@ -35,14 +35,6 @@ def init_alpha_beta(A, B, n_workers):
     return alpha, beta
 
 
-def update(a, b,n_update,change):
-    n_update += 1
-    change += np.abs(a - b).sum()/a.shape[0]
-
-
-    return n_update,change
-
-
 def e_step(y_train, n_workers, q_z_i, annotation_matrix, alpha, beta, theta_i,true_labels,new_order,y_val,start_val,end_val,max_it=20):
     old_q_z_i = theta_i.copy()
     old_alpha = alpha.copy()
@@ -51,7 +43,6 @@ def e_step(y_train, n_workers, q_z_i, annotation_matrix, alpha, beta, theta_i,tr
     train_acc = []
     y_val_label = np.argmax(y_val,axis=1)
 
-    # theta_i = np.concatenate((y_train, theta_i[y_train.shape[0]:]))
     for it in range(max_it):
         # update q(z)
 
@@ -64,12 +55,10 @@ def e_step(y_train, n_workers, q_z_i, annotation_matrix, alpha, beta, theta_i,tr
             worker_n_answers = infl_aij[np.all(infl_aij[:,2:] == 0, axis=1)]
             T_i = worker_answers[:, 0]
             for worker in T_i.astype(int):
-                #worker_id = np.where(all_workers == worker)
                 w_answer = worker_answers[worker_answers[:, 0] == worker][:, 2:]
                 w_answer_i = np.where(w_answer[0] == 1)[0][0]
                 alpha_val = alpha[worker]
                 beta_val =  beta[worker]
-                
                 updated_q_z_i[w_answer_i] = updated_q_z_i[w_answer_i] * np.exp(digamma(alpha_val) - digamma(alpha_val + beta_val))
 
                 for no_answer_i in np.delete(LABEL_INDEX,w_answer_i):
@@ -97,7 +86,6 @@ def e_step(y_train, n_workers, q_z_i, annotation_matrix, alpha, beta, theta_i,tr
 
         for worker in range(0, n_workers):
             worker_aij = annotation_matrix[annotation_matrix[:, 0] == worker].copy()
-            # T_j_1 = worker_aij[worker_aij[:,2] == 1][:, 1]
             T_j = worker_aij[~np.all(worker_aij[:,2:] == 0, axis=1)]
             T_j_n = worker_aij[np.all(worker_aij[:,2:] == 0, axis=1)]
             for infl in T_j[:, 1].astype(int):
@@ -120,8 +108,6 @@ def e_step(y_train, n_workers, q_z_i, annotation_matrix, alpha, beta, theta_i,tr
         q_z_i_change = LA.norm(old_q_z_i - q_z_i)
         # da = LA.norm(old_alpha - alpha)
         # db = LA.norm(old_beta - beta)
-        # da = LA.norm(old_alpha - alpha)
-        # db = LA.norm(old_beta - beta)
 
         old_q_z_i = q_z_i.copy()
         old_alpha = alpha.copy()
@@ -138,11 +124,6 @@ def e_step(y_train, n_workers, q_z_i, annotation_matrix, alpha, beta, theta_i,tr
         if q_z_i_change < 0.1:
             break
 
-    # plt.clf()
-    # plt.plot(diff, marker='o', label='change')
-    # plt.plot(train_acc, marker='o', label='accuracy')
-    # plt.legend()
-    # plt.show()
     return q_z_i,alpha,beta
 
 def m_step(nn_em,q_z_i, classifier, social_features, total_epochs, steps, y_test, y_val,X_val,start_val,alpha, beta):
@@ -153,7 +134,7 @@ def m_step(nn_em,q_z_i, classifier, social_features, total_epochs, steps, y_test
 
 
 def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_labeled, true_labels, supervision_rate, \
-           column_names, n_neurons, hidden, m_feats, weights_before_em,weights_after_em,iterr,total_epochs,evaluation_file,theta_file,steps,nb_hidden_layer):
+           column_names, n_neurons, m_feats, weights_before_em,weights_after_em,iterr,total_epochs,evaluation_file,theta_file,steps):
     n_infls = n_infls_label
     q_z_i, A, B = init_probabilities(n_infls)
 
@@ -185,28 +166,6 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
 
     theta_i_val_label = np.argmax(theta_i_val,axis=1)
     theta_i_test_label = np.argmax(theta_i_test,axis=1)
-
-    # while (LA.norm(theta_i - old_theta_i) > epsilon) and (steps_it0 < total_epochs):
-    #     old_theta_i = theta_i.copy()
-    #     classifier.fit(X_train, y_train, epochs=steps, verbose=0)
-    #     theta_i_val = classifier.predict(X_val)
-    #     theta_i_test = classifier.predict(X_test)
-
-    #     theta_i_val_label = np.argmax(theta_i_val,axis=1)
-    #     theta_i_test_label = np.argmax(theta_i_test,axis=1) 
-
-    #     theta_i = np.concatenate((y_train, theta_i_val, theta_i_test))
-    #     eval_model_test = accuracy_score(y_test_label, theta_i_test_label)
-    #     eval_model_val = accuracy_score(y_val_label, theta_i_val_label)
-    #     if steps_it0 % 10 == 0:
-    #         print("epoch", steps_it0, " convergence:", LA.norm(theta_i - old_theta_i), \
-    #             "val", eval_model_val, "test", eval_model_test)
-    #         # print('val:')
-    #         # print(classification_report(y_val_label, theta_i_val_label, target_names=LABEL_NAMES))
-    #         # print('test:')
-    #         # print(classification_report(y_test_label, theta_i_test_label, target_names=LABEL_NAMES))
-    #     steps_it0 += 1
-
     
     weights = classifier.get_weights()
     pd.DataFrame(np.concatenate((column_names[1:], weights[0]), axis=1)).to_csv(weights_before_em, encoding="utf-8")
@@ -228,10 +187,10 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
 
     social_features = social_features_labeled
     
-    eval_model_theta_test = [] 
-    eval_model_theta_val = []
-    eval_model_test = []
-    eval_model_val = []
+    accuracy_theta_i_test = [] 
+    accuracy_theta_i_val = []
+    accuracy_q_z_i_test = []
+    accuracy_q_z_i_val = []
 
     em_step = 0
     while em_step < iterr:
@@ -254,13 +213,15 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
         theta_i_test_label = np.argmax(theta_i[end_val:],axis=1)
 
         auc_val_theta = roc_auc_score(y_val, theta_i[start_val:end_val],multi_class="ovo",average="macro")
-        auc_test_theta = roc_auc_score(y_test_label, theta_i[end_val:],multi_class="ovo",average="macro")
+        auc_test_theta = roc_auc_score(y_test, theta_i[end_val:],multi_class="ovo",average="macro")
 
-        eval_model_theta_test.append(accuracy_score(y_test_label, theta_i_test_label))
-        eval_model_theta_val.append(accuracy_score(y_val_label, theta_i_val_label))
+        accuracy_theta_i_test.append(accuracy_score(y_test_label, theta_i_test_label))
+        accuracy_theta_i_val.append(accuracy_score(y_val_label, theta_i_val_label))
 
-        eval_model_test.append(accuracy_score(y_test_label, q_z_i_test_label))
-        eval_model_val.append(accuracy_score(y_val_label, q_z_i_val_label))
+        accuracy_q_z_i_test.append(accuracy_score(y_test_label, q_z_i_test_label))
+        accuracy_q_z_i_val.append(accuracy_score(y_val_label, q_z_i_val_label))
+
+        print('em_step', em_step)
 
         print('Classification Repport for validation set:\n', classification_report(y_val_label, q_z_i_val_label, target_names=LABEL_NAMES))
         print('auc_val:', auc_val)
@@ -273,135 +234,24 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
         print('auc_test_theta:', auc_test_theta)
 
     
-    plt.plot(eval_model_theta_test, marker='o', label='eval_model_theta_test')
-    plt.plot(eval_model_theta_val, marker='o', label='eval_model_theta_val')
-    plt.plot(eval_model_test, marker='o', label='eval_model_test')
-    plt.plot(eval_model_val, marker='o', label='eval_model_val')
-    plt.legend()
-    plt.show()
+    if __name__ == '__main__':
+        plt.plot(accuracy_theta_i_test, marker='o', label='accuracy_theta_i_test')
+        plt.plot(accuracy_theta_i_val, marker='o', label='accuracy_theta_i_val')
+        plt.plot(accuracy_q_z_i_test, marker='o', label='accuracy_q_z_i_test')
+        plt.plot(accuracy_q_z_i_val, marker='o', label='accuracy_q_z_i_val')
+        plt.legend()
+        plt.show()
     weights = classifier.get_weights()
     pd.DataFrame(np.concatenate((column_names[1:], weights[0]), axis=1)).to_csv(weights_after_em, encoding="utf-8")
-    return q_z_i, alpha, beta, theta_i, classifier
 
-def parse_args():
-    parser = argparse.ArgumentParser(
-        description="EM method")
-    parser.add_argument("--labeled_social_features",
-                        type=str,
-                        required=True,
-                        help="inputfile labeled social features")
+    report = pd.DataFrame([accuracy_theta_i_test,accuracy_theta_i_val,accuracy_q_z_i_test,accuracy_q_z_i_val],index=['accuracy_theta_i_test','accuracy_theta_i_val','accuracy_q_z_i_test','accuracy_q_z_i_val']).transpose()
+    report = report.describe()
+    return q_z_i, alpha, beta, theta_i, classifier, report
 
-    parser.add_argument("--unlabeled_social_features",
-                        type=str,
-                        required=True,
-                        help="inputfile unlabeled social features")
 
-    parser.add_argument("--annotation_matrix",
-                        type=str,
-                        required=True,
-                        help="inputfile of the annotation matrix")
-
-    parser.add_argument("--labels",
-                        type=str,
-                        required=True,
-                        help="inputfile of labels")
-
-    parser.add_argument("--total_epochs_nn",
-                        default=10,
-                        type=int,
-                        help="number of epochs for the Neural network at the M step")
-
-    parser.add_argument("--total_neurons_nn",
-                        default=10,
-                        type=int,
-                        help="number of neurons for the Neural network at the M step")
-
-    parser.add_argument("--nb_hidden_layer",
-                        default=1,
-                        type=int,
-                        help="number of hidden layer for the Neural network at the M step")
-
-    parser.add_argument("--steps",
-                        default=1,
-                        type=int,
-                        help="number of steps for the Neural network at the M step")
-
-    parser.add_argument("--hidden_layer",
-                        default=False,
-                        type=bool,
-                        help="use hidden layer in the NN")
-
-    parser.add_argument("--supervision_rate",
-                        default=0.6,
-                        type=float,
-                        help="how much to use for training")
-
-    parser.add_argument("--sampling_rate",
-                        default=1.0,
-                        type=float,
-                        help="how much to use for negative sampling for the e step")
-
-    parser.add_argument("--nb_iterations_EM",
-                        default=10,
-                        type=int,
-                        help="number of iterations for the EM")
-
-    parser.add_argument("--worker_reliability_file",
-                        type=str,
-                        required=True,
-                        help="worker reliability file output of the model")
-
-    parser.add_argument("--influencer_quality_file",
-                        type=str,
-                        required=True,
-                        help="influencer quality file output of the model")
-
-    parser.add_argument("--evaluation_file",
-                        type=str,
-                        required=True,
-                        help="evaluation result after each iteration")
-
-    parser.add_argument("--theta_file",
-                        type=str,
-                        required=True,
-                        help="theta result after nn")
-
-    parser.add_argument("--weights_before_em",
-                        type=str,
-                        required=True,
-                        help="inputfile LR")
-
-    parser.add_argument("--weights_after_em",
-                        type=str,
-                        required=True,
-                        help="inputfile weights EM")
-
-    parser.add_argument("--tweet2vec",
-                        type=str,
-                        required=True,
-                        help="inputfile tweet2vec")
-
-    parser.add_argument("--tweet2vec_dim",
-                        type=int,
-                        help="dimension of tweet2vec")
-
-    args = parser.parse_args()
-    return args
-
-if __name__ == '__main__':
-    args = parse_args()
-    influencer_file_labeled = args.labeled_social_features #'../input/simple_example_vem_labeled.csv'
-    influencer_file_unlabeled = args.unlabeled_social_features # '../input/simple_example_vem_unlabeled.csv'
-    annotation_file = args.annotation_matrix #'../input/aij_simple_example_vem.csv'
-    labels_file = args.labels #'../input/simple_example_vem_labels.csv'
-    tweet2vec_file = args.tweet2vec
-    tweet2vec_dim = args.tweet2vec_dim
-    theta_file = args.theta_file # '../output/theta_i_vem_se.csv'
-    evaluation_file = args.evaluation_file # '../output/evaluation_vem_se.csv'
-    weights_before_em = args.weights_before_em #'../output/weights_before_em.csv'
-    weights_after_em = args.weights_after_em #'../output/weights_after_em.csv'
-    nb_hidden_layer = args.nb_hidden_layer
-
+def run(influencer_file_labeled, annotation_file, labels_file, tweet2vec_file, tweet2vec_dim, theta_file,
+    evaluation_file, weights_before_em, weights_after_em, total_epochs, n_neurons, steps, supervision_rate,
+    iterr, sampling_rate, worker_reliability_file, influencer_quality_file):
     tweet2vec = pd.read_csv(tweet2vec_file)
 
     influencer_labeled = pd.read_csv(influencer_file_labeled, sep=",")
@@ -423,10 +273,8 @@ if __name__ == '__main__':
         column_names = np.append(column_names, np.array([['vector' + str(i)]]), axis=0)
     print(column_names.shape)
     annotation_matrix = pd.read_csv(annotation_file, sep=",",header=None)
-    # annotation_matrix = np.loadtxt(annotation_file, delimiter=',')
     labels = pd.read_csv(labels_file, sep=",")
 
-    # social_features_labeled = preprocessing.scale(influencer_labeled.values[:, 1:])
     social_features_labeled = influencer_labeled.values[:,1:]
 
     # Encode labels
@@ -439,7 +287,6 @@ if __name__ == '__main__':
     social_features_labeled = np.concatenate(
         (influencer_labeled.values[:, [0]], social_features_labeled, labeled_embeddings, true_labels_pr), axis=1)
     soc_label_bsh = social_features_labeled.copy()
-    #np.random.shuffle(social_features_labeled)
 
     m = social_features_labeled.shape[1]
     true_labels = social_features_labeled[:, (m - NUMBER_OF_LABELS):]
@@ -447,18 +294,9 @@ if __name__ == '__main__':
 
     n_infls_label = social_features_labeled.shape[0]
     m_feats = social_features_labeled.shape[1]
-    # n_workers = np.unique(annotation_matrix[:, 0]).shape[0]
     n_workers = annotation_matrix[0].unique().shape[0]
 
     new_order = social_features_labeled[:, 0]
-
-    total_epochs = args.total_epochs_nn#10
-    n_neurons = args.total_neurons_nn #3
-    hidden = args.hidden_layer #false
-    steps = args.steps #1
-    supervision_rate = args.supervision_rate #0.6
-    iterr = args.nb_iterations_EM #10
-    sampling_rate = args.sampling_rate #2.0
 
     aij = np.empty((0, 2 + NUMBER_OF_LABELS), int)
 
@@ -471,7 +309,6 @@ if __name__ == '__main__':
 
     for worker in range(0, n_workers):
         worker_aij = annotation_matrix[annotation_matrix[:, 0] == worker]
-        # worker_aij_s = worker_aij.copy()
         worker_aij_s = np.empty((0, 2 + NUMBER_OF_LABELS), int)
         for i in range(0, n_infls_label):
             if worker_aij[worker_aij[:, 1] == new_order[i]].size > 0:
@@ -511,40 +348,40 @@ if __name__ == '__main__':
     # print("% of ones in the matrix=", (np.sum(aij_s[:, 2]) * 100) / aij_s.shape[0])
 
 
-    with open(evaluation_file, 'a') as file:
-        file.write("sampling rate," + str(sampling_rate))
-        file.write('\n')
-        file.write("hidden," + str(hidden))
-        file.write('\n')
-        file.write("nb layers," + str(nb_hidden_layer))
-        file.write('\n')
-        file.write("nb neurons," + str(n_neurons))
-        file.write('\n')
+    # with open(evaluation_file, 'a') as file:
+    #     file.write("sampling rate," + str(sampling_rate))
+    #     file.write('\n')
+    #     file.write("nb neurons," + str(n_neurons))
+    #     file.write('\n')
     nn_em_in = nn_em()
     print (social_features_labeled.shape, true_labels.shape)
 
     social_features_labeled = social_features_labeled[:,1:]
     m_feats = m_feats - 1
 
-    q_z_i, alpha, beta, theta_i, classifier = var_em(nn_em_in,n_infls_label,aij_s,new_order,n_workers,\
+    q_z_i, alpha, beta, theta_i, classifier, report = var_em(nn_em_in,n_infls_label,aij_s,new_order,n_workers,\
                                                                 social_features_labeled,\
                                                                 true_labels,supervision_rate, column_names,\
-                                                                n_neurons,hidden,m_feats,weights_before_em,weights_after_em,\
-                                                                iterr,total_epochs,evaluation_file,theta_file,steps,nb_hidden_layer)
+                                                                n_neurons,m_feats,weights_before_em,weights_after_em,\
+                                                                iterr,total_epochs,evaluation_file,theta_file,steps)
 
+    report.to_csv(evaluation_file)
     df = pd.read_csv(weights_before_em,
                      names=['name', 'weight']).sort_values(by=['weight'],ascending=False)
     df.to_csv(weights_before_em)
     df = pd.read_csv(weights_after_em,
                      names=['name', 'weight']).sort_values(by=['weight'],ascending=False)
     df.to_csv(weights_after_em)
-    worker_reliability_file = args.worker_reliability_file
-    influencer_quality_file = args.influencer_quality_file
     worker_reliability = np.concatenate((np.arange(n_workers).reshape(n_workers, 1), alpha, beta), axis=1)
     influencer_quality = np.concatenate(
         (social_features_labeled[:, [0]], true_labels, q_z_i, theta_i), axis=1)
     pd.DataFrame(worker_reliability).to_csv(worker_reliability_file, index=False)
     pd.DataFrame(influencer_quality).to_csv(influencer_quality_file, index=False)
-        # print(pd.DataFrame(data=np.concatenate([np.where(q_z_i_0 > q_z_i_0.mean(), 0, 1), true_labels], axis=1),
-        #                    columns=['classification', 'truth']))
-# Execute main() function
+    return report
+    
+
+if __name__ == '__main__':
+    # load default arguments
+    args = arguments.args
+
+    run(**args)
