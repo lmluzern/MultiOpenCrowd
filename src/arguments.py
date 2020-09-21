@@ -16,5 +16,6 @@ args = {
     'iterr' : 20,
     'sampling_rate' : 1.0,
     'worker_reliability_file' : '../output/simple_example/worker_reliability/worker_reliability_sup_60_sr_10_0_name.csv',
-    'influencer_quality_file' : '../output/simple_example/influencer_quality/influencer_quality_sup_60_sr_10_name.csv'
+    'influencer_quality_file' : '../output/simple_example/influencer_quality/influencer_quality_sup_60_sr_10_name.csv',
+    'random_sampling' : False
 }

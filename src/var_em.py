@@ -97,8 +97,8 @@ def e_step(y_train, n_workers, q_z_i, annotation_matrix, alpha, beta, theta_i,tr
                 new_beta[worker] += 1 - q_z_i[index_infl][worker_answer_i]
 
             for infl in T_j_n[:, 1].astype(int):
-                    new_alpha[worker] += NUMBER_OF_LABELS -1
-                    new_beta[worker] += 1
+                new_alpha[worker] += NUMBER_OF_LABELS -1
+                new_beta[worker] += 1
 
 
         for worker in range(0, n_workers):
@@ -251,7 +251,7 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
 
 def run(influencer_file_labeled, annotation_file, labels_file, tweet2vec_file, tweet2vec_dim, theta_file,
     evaluation_file, weights_before_em, weights_after_em, total_epochs, n_neurons, steps, supervision_rate,
-    iterr, sampling_rate, worker_reliability_file, influencer_quality_file):
+    iterr, sampling_rate, worker_reliability_file, influencer_quality_file, random_sampling):
     tweet2vec = pd.read_csv(tweet2vec_file)
 
     influencer_labeled = pd.read_csv(influencer_file_labeled, sep=",")
@@ -332,7 +332,10 @@ def run(influencer_file_labeled, annotation_file, labels_file, tweet2vec_file, t
             indices = random.sample(range(T_w_n_all.shape[0]), int(T_w.shape[0] * sampling_rate))
         else:
             indices = random.sample(range(T_w_n_all.shape[0]), T_w_n_all.shape[0])
-        T_w_n = T_w_n_all[indices, :]
+        T_w_n = T_w_n_all[indices, :].copy()
+        if random_sampling:
+            for e in T_w_n:
+                e[2+random.randrange(NUMBER_OF_LABELS)] = 1
         aij_s = np.concatenate((aij_s, T_w, T_w_n))
 
     # size_train = int(supervision_rate * n_infls_label)
