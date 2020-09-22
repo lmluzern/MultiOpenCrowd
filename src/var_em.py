@@ -35,7 +35,7 @@ def init_alpha_beta(A, B, n_workers):
     return alpha, beta
 
 
-def e_step(y_train, n_workers, q_z_i, annotation_matrix, alpha, beta, theta_i,true_labels,new_order,y_val,start_val,end_val,max_it=20):
+def e_step(y_train, n_workers, q_z_i, annotation_matrix, alpha, beta, theta_i,true_labels,new_order,y_val,start_val,end_val,new_alpha_value,max_it=20):
     old_q_z_i = theta_i.copy()
     old_alpha = alpha.copy()
     old_beta = beta.copy()
@@ -97,8 +97,8 @@ def e_step(y_train, n_workers, q_z_i, annotation_matrix, alpha, beta, theta_i,tr
                 new_beta[worker] += 1 - q_z_i[index_infl][worker_answer_i]
 
             for infl in T_j_n[:, 1].astype(int):
-                new_alpha[worker] += NUMBER_OF_LABELS -1
-                new_beta[worker] += 1
+                new_alpha[worker] += new_alpha_value
+                new_beta[worker] += 1 - new_alpha_value
 
 
         for worker in range(0, n_workers):
@@ -134,7 +134,7 @@ def m_step(nn_em,q_z_i, classifier, social_features, total_epochs, steps, y_test
 
 
 def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_labeled, true_labels, supervision_rate, \
-           column_names, n_neurons, m_feats, weights_before_em,weights_after_em,iterr,total_epochs,evaluation_file,theta_file,steps):
+           column_names, n_neurons, m_feats, weights_before_em,weights_after_em,iterr,total_epochs,evaluation_file,theta_file,steps,new_alpha_value):
     n_infls = n_infls_label
     q_z_i, A, B = init_probabilities(n_infls)
 
@@ -196,7 +196,7 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
     while em_step < iterr:
         # variational E step
         q_z_i, alpha, beta = e_step(y_train, n_workers, q_z_i, aij_s, alpha,
-                                               beta, theta_i, true_labels,new_order,y_val,start_val,end_val)
+                                               beta, theta_i, true_labels,new_order,y_val,start_val,end_val,new_alpha_value)
 
         # variational M step
         theta_i, classifier = m_step(nn_em_in, q_z_i, classifier, social_features, total_epochs, steps, y_test, y_val, X_val,
@@ -251,7 +251,7 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
 
 def run(influencer_file_labeled, annotation_file, labels_file, tweet2vec_file, tweet2vec_dim, theta_file,
     evaluation_file, weights_before_em, weights_after_em, total_epochs, n_neurons, steps, supervision_rate,
-    iterr, sampling_rate, worker_reliability_file, influencer_quality_file, random_sampling):
+    iterr, sampling_rate, worker_reliability_file, influencer_quality_file, random_sampling,new_alpha_value):
     tweet2vec = pd.read_csv(tweet2vec_file)
 
     influencer_labeled = pd.read_csv(influencer_file_labeled, sep=",")
@@ -366,7 +366,7 @@ def run(influencer_file_labeled, annotation_file, labels_file, tweet2vec_file, t
                                                                 social_features_labeled,\
                                                                 true_labels,supervision_rate, column_names,\
                                                                 n_neurons,m_feats,weights_before_em,weights_after_em,\
-                                                                iterr,total_epochs,evaluation_file,theta_file,steps)
+                                                                iterr,total_epochs,evaluation_file,theta_file,steps,new_alpha_value)
 
     report.to_csv(evaluation_file)
     df = pd.read_csv(weights_before_em,
