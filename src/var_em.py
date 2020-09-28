@@ -333,10 +333,27 @@ def run(influencer_file_labeled, annotation_file, labels_file, tweet2vec_file, t
         else:
             indices = random.sample(range(T_w_n_all.shape[0]), T_w_n_all.shape[0])
         T_w_n = T_w_n_all[indices, :].copy()
-        if random_sampling:
-            for e in T_w_n:
-                e[2+random.randrange(NUMBER_OF_LABELS)] = 1
         aij_s = np.concatenate((aij_s, T_w, T_w_n))
+
+    if random_sampling:
+        T_w_n  = aij_s[np.all(aij_s[:,2:] == 0, axis=1)]
+        aij_s = aij_s[~np.all(aij_s[:,2:] == 0, axis=1)]
+
+        num_no_answer = T_w_n.shape[0]
+        # equal dist.
+        label_ditribution = np.full(( NUMBER_OF_LABELS), 1/NUMBER_OF_LABELS)
+        # custom
+        # label_ditribution = np.array([1/6,1/6,2/3])
+
+        random_labels = np.empty((0,), int)
+        for i in LABEL_INDEX:
+            random_labels = np.concatenate((random_labels,np.repeat(i, int(label_ditribution[i]*num_no_answer))))
+        random_labels = np.concatenate((random_labels,np.random.randint(3, size=num_no_answer-random_labels.shape[0])))
+        np.random.shuffle(random_labels)
+
+        for i, e in enumerate(T_w_n):
+            e[2 + random_labels[i]] = 1
+        aij_s = np.concatenate((aij_s, T_w_n))
 
     # size_train = int(supervision_rate * n_infls_label)
     # percentage_train = 0

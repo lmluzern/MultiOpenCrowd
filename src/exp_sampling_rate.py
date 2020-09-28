@@ -9,7 +9,7 @@ epochs = 10
 args = arguments.args
 
 # range from 0 to 50 -> with 50+ error
-for rate in [0, 0.1, 1] + [x * 10.0 for x in range(1, 6)]:
+for rate in [0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]:
 	args['sampling_rate'] = rate
 	args['iterr'] = 20
 
