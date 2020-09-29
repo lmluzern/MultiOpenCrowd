@@ -1,11 +1,10 @@
 import pandas as pd
 import csv
 import numpy as np
-from keras import Sequential
-from keras.layers import Dense
+from keras import Sequential, Model
+from keras.layers import Dense, Concatenate, Input, Conv1D, MaxPooling1D, Flatten, Dropout, GlobalAveragePooling1D
 from keras.callbacks import EarlyStopping
 from sklearn.preprocessing import StandardScaler
-
 from keras import backend as K
 from keras import initializers
 from keras import optimizers
@@ -192,3 +191,48 @@ class nn_em:
         with open(output_file, 'a') as f:
             metrics.to_csv(f, header=True)
 
+    def create_multiple_input_model(self,mlp_neurons,input_dim_a,input_dim_b,class_num):
+        inputA = Input(shape=input_dim_a)
+        inputB = Input(shape=input_dim_b)
+
+        a = Dense(mlp_neurons, activation="relu")(inputA)
+        a = Dense(class_num, activation="softmax")(a)
+        a = Model(inputs=inputA, outputs=a)
+
+        b = Conv1D(64, 3, activation="relu")(inputB)
+        b = Conv1D(64, 3, activation="relu")(b)
+        b = Dropout(0.5)(b)
+        b = MaxPooling1D()(b)
+        b = Flatten()(b)
+        b = Dense(100, activation='relu')(b)
+        b = Model(inputs=inputB, outputs=b)
+
+        combined = Concatenate()([a.output, b.output])
+
+        c = Dense(mlp_neurons, activation="relu")(combined)
+        c = Dense(class_num, activation="softmax")(c)
+        model = Model(inputs=[a.input, b.input], outputs=c)
+        model.compile(loss = 'categorical_crossentropy', optimizer='adam',metrics = ['accuracy'])
+
+        return model
+
+    def create_multiple_input_model_mlp(self,mlp_neurons,input_dim_a,input_dim_b,class_num):
+        inputA = Input(shape=input_dim_a)
+        inputB = Input(shape=input_dim_b)
+
+        a = Dense(mlp_neurons, activation="relu")(inputA)
+        a = Dense(class_num, activation="relu")(a)
+        a = Model(inputs=inputA, outputs=a)
+
+        b = Dense(int((input_dim_b[0] + class_num)/2), activation="relu")(inputB)
+        b = Dense(class_num, activation="relu")(b)
+        b = Model(inputs=inputB, outputs=b)
+
+        combined = Concatenate()([a.output, b.output])
+
+        c = Dense(int((class_num*3)/2), activation="relu")(combined)
+        c = Dense(class_num, activation="softmax")(c)
+        model = Model(inputs=[a.input, b.input], outputs=c)
+        model.compile(loss = 'categorical_crossentropy', optimizer='adam',metrics = ['accuracy'])
+
+        return model

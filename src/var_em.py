@@ -134,7 +134,7 @@ def m_step(nn_em,q_z_i, classifier, social_features, total_epochs, steps, y_test
 
 
 def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_labeled, true_labels, supervision_rate, \
-           column_names, n_neurons, m_feats, weights_before_em,weights_after_em,iterr,total_epochs,evaluation_file,theta_file,steps,new_alpha_value):
+           column_names, n_neurons, m_feats, weights_before_em,weights_after_em,iterr,total_epochs,evaluation_file,theta_file,steps,new_alpha_value,multiple_input,tweet2vec_dim):
     n_infls = n_infls_label
     q_z_i, A, B = init_probabilities(n_infls)
 
@@ -144,10 +144,33 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
                                                         test_size=(1 - supervision_rate), shuffle=False)
     X_val, X_test, y_val, y_test = train_test_split(X_test, y_test, test_size=0.5, shuffle=False)
 
-    n_neurons = int((NUMBER_OF_LABELS + m_feats)/2)
+    social_features = social_features_labeled
 
-    classifier = nn_em_in.define_multiclass_nn(n_neurons,m_feats,NUMBER_OF_LABELS)
+    start_val = X_train.shape[0]
+    end_val = X_train.shape[0] + X_val.shape[0]
+
+    n_stat_feats = m_feats - tweet2vec_dim
+
+    if multiple_input:
+        n_neurons = int((NUMBER_OF_LABELS + n_stat_feats)/2)
+        classifier = nn_em_in.create_multiple_input_model_mlp(n_neurons,(n_stat_feats,),(tweet2vec_dim,),NUMBER_OF_LABELS)
+        # classifier = nn_em_in.create_multiple_input_model(n_neurons,(n_stat_feats,),(tweet2vec_dim,1),NUMBER_OF_LABELS)
+
+        X_train = [X_train[:,:n_stat_feats],X_train[:,n_stat_feats:]]
+        X_val = [X_val[:,:n_stat_feats],X_val[:,n_stat_feats:]]
+        X_test = [X_test[:,:n_stat_feats],X_test[:,n_stat_feats:]]
+
+        social_features = [social_features[:,:n_stat_feats],social_features[:,n_stat_feats:]]
+        # X_train = [X_train[:,:n_stat_feats],X_train[:,n_stat_feats:].reshape(X_train[:,n_stat_feats:].shape[0], X_train[:,n_stat_feats:].shape[1], 1)]
+        # X_val = [X_val[:,:n_stat_feats],X_val[:,n_stat_feats:].reshape(X_val[:,n_stat_feats:].shape[0], X_val[:,n_stat_feats:].shape[1], 1)]
+        # X_test = [X_test[:,:n_stat_feats],X_test[:,n_stat_feats:].reshape(X_test[:,n_stat_feats:].shape[0], X_test[:,n_stat_feats:].shape[1], 1)]
+
+        # social_features = [social_features[:,:n_stat_feats],social_features[:,n_stat_feats:].reshape(social_features[:,n_stat_feats:].shape[0], social_features[:,n_stat_feats:].shape[1], 1)]
+    else:
+        n_neurons = int((NUMBER_OF_LABELS + m_feats)/2)
+        classifier = nn_em_in.define_multiclass_nn(n_neurons,m_feats,NUMBER_OF_LABELS)
     print(classifier.summary())
+
     steps_it0 = 0
     epsilon = 1e-4
     theta_i = q_z_i.copy()
@@ -161,6 +184,7 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
                         verbose=0, mode='auto', restore_best_weights=True)
 
     classifier.fit(X_train, y_train, validation_data=(X_val,y_val), callbacks=[monitor], verbose=2, epochs=100, batch_size=4)
+
     theta_i_val = classifier.predict(X_val)
     theta_i_test = classifier.predict(X_test)
 
@@ -168,10 +192,7 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
     theta_i_test_label = np.argmax(theta_i_test,axis=1)
     
     weights = classifier.get_weights()
-    pd.DataFrame(np.concatenate((column_names[1:], weights[0]), axis=1)).to_csv(weights_before_em, encoding="utf-8")
-
-    start_val = X_train.shape[0]
-    end_val = X_train.shape[0] + X_val.shape[0]
+    # pd.DataFrame(np.concatenate((column_names[1:], weights[0]), axis=1)).to_csv(weights_before_em, encoding="utf-8")
 
     auc_val = roc_auc_score(y_val, theta_i_val,multi_class="ovo",average="macro")
     auc_test = roc_auc_score(y_test, theta_i_test,multi_class="ovo",average="macro")
@@ -184,8 +205,6 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
     theta_i = np.concatenate((y_train, theta_i_val, theta_i_test))
     theta_quality = np.concatenate((true_labels, theta_i), axis=1)
     pd.DataFrame(theta_quality).to_csv(theta_file, index=False)
-
-    social_features = social_features_labeled
     
     accuracy_theta_i_test = [] 
     accuracy_theta_i_val = []
@@ -242,7 +261,7 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
         plt.legend()
         plt.show()
     weights = classifier.get_weights()
-    pd.DataFrame(np.concatenate((column_names[1:], weights[0]), axis=1)).to_csv(weights_after_em, encoding="utf-8")
+    # pd.DataFrame(np.concatenate((column_names[1:], weights[0]), axis=1)).to_csv(weights_after_em, encoding="utf-8")
 
     report = pd.DataFrame([accuracy_theta_i_test,accuracy_theta_i_val,accuracy_q_z_i_test,accuracy_q_z_i_val],index=['accuracy_theta_i_test','accuracy_theta_i_val','accuracy_q_z_i_test','accuracy_q_z_i_val']).transpose()
     report = report.describe()
@@ -251,7 +270,7 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
 
 def run(influencer_file_labeled, annotation_file, labels_file, tweet2vec_file, tweet2vec_dim, theta_file,
     evaluation_file, weights_before_em, weights_after_em, total_epochs, n_neurons, steps, supervision_rate,
-    iterr, sampling_rate, worker_reliability_file, influencer_quality_file, random_sampling,new_alpha_value):
+    iterr, sampling_rate, worker_reliability_file, influencer_quality_file, random_sampling,new_alpha_value,multiple_input):
     tweet2vec = pd.read_csv(tweet2vec_file)
 
     influencer_labeled = pd.read_csv(influencer_file_labeled, sep=",")
@@ -383,7 +402,7 @@ def run(influencer_file_labeled, annotation_file, labels_file, tweet2vec_file, t
                                                                 social_features_labeled,\
                                                                 true_labels,supervision_rate, column_names,\
                                                                 n_neurons,m_feats,weights_before_em,weights_after_em,\
-                                                                iterr,total_epochs,evaluation_file,theta_file,steps,new_alpha_value)
+                                                                iterr,total_epochs,evaluation_file,theta_file,steps,new_alpha_value,multiple_input,tweet2vec_dim)
 
     report.to_csv(evaluation_file)
     df = pd.read_csv(weights_before_em,
