@@ -1,16 +1,11 @@
 import pandas as pd
 import csv
 import numpy as np
-from keras import Sequential, Model
-from keras.layers import Dense, Concatenate, Input, Conv1D, MaxPooling1D, Flatten, Dropout, GlobalAveragePooling1D
-from keras.callbacks import EarlyStopping
+from tensorflow.keras import Sequential, Model
+from tensorflow.keras.layers import Dense, Concatenate, Input, Conv1D, MaxPooling1D, Flatten, Dropout, GlobalAveragePooling1D
+from tensorflow.keras.callbacks import EarlyStopping
 from sklearn.preprocessing import StandardScaler
-from keras import backend as K
-from keras import initializers
-from keras import optimizers
-from keras import regularizers
 from sklearn.metrics import accuracy_score
-import tensorflow as tf
 from sklearn.model_selection import train_test_split
 from numpy import linalg as LA
 
