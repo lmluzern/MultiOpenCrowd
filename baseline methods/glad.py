@@ -72,7 +72,7 @@ class GLAD:
             lpd = {}
 
             if example in self.e2t:
-                truth = e2t[example]
+                truth = self.e2t[example]
                 for label in self.label_set:
                     if label == truth:
                         lpd[label] = 1.0
@@ -89,7 +89,7 @@ class GLAD:
                     logsigma = self.logsigmoid(self.alpha[worker]*self.expbeta(self.beta[example]))
                     logoneminussigma = self.logoneminussigmoid(self.alpha[worker]*self.expbeta(self.beta[example]))
                     delta = self.kronecker_delta(label,tlabel)
-                    weight = weight + delta*logsigma + (1-delta)*(logoneminussigma-math.log(len(label_set)-1))
+                    weight = weight + delta*logsigma + (1-delta)*(logoneminussigma-math.log(len(self.label_set)-1))
 
                 if weight<math.log(sys.float_info.min):
                      lpd[tlabel] = 0
@@ -141,7 +141,7 @@ class GLAD:
                 logoneminussigma = self.logoneminussigmoid(self.alpha[worker]*self.expbeta(self.beta[example]))
                 for tlabel in self.prior.keys():
                     delta = self.kronecker_delta(label,tlabel)
-                    Q = Q + self.e2lpd[example][tlabel]*(delta*logsigma+(1-delta)*(logoneminussigma-math.log(len(label_set)-1)))
+                    Q = Q + self.e2lpd[example][tlabel]*(delta*logsigma+(1-delta)*(logoneminussigma-math.log(len(self.label_set)-1)))
 
         # the expectation of the sum of priors over all examples
         for example in self.e2wl.keys():
@@ -274,12 +274,12 @@ class GLAD:
             # E-step
             self.Update_e2lpd()
             Q = self.computeQ()
-            print Q
+            # print Q
 
             # M-step
             self.Update_alpha_beta()
             Q = self.computeQ()
-            print Q
+            # print Q
 
             # compute the likelihood
             #print self.computelikelihood()
@@ -370,15 +370,6 @@ def gete2t(known_true):
     f.close()
     return e2t
 
-if __name__ == "__main__":
-
-    datafile = sys.argv[1]
-    e2wl,w2el,label_set = gete2wlandw2el(datafile)
-    e2t = gete2t(sys.argv[2])
+def run(e2t,e2wl,w2el,label_set):
     e2lpd, weight = GLAD(e2wl,w2el,label_set,e2t).Run(1e-4)
-
-    print weight
-    print e2lpd
-    #truthfile = sys.argv[2]
-    #accuracy = getaccuracy(truthfile, e2lpd, label_set)
-    #print accuracy
+    return e2lpd
