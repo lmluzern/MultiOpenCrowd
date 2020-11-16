@@ -1,4 +1,5 @@
 import GLAD.method as glad
+import CATD.method as catd
 import utils
 import pandas as pd
 import numpy as np
@@ -30,7 +31,7 @@ def evaluate_sampling_rate(method,sampling_rate,filepath):
 			e2wl,w2el,label_set = utils.gete2wlandw2el(annotation_file,rate)
 			e2lpd = method.run(e2t,e2wl,w2el,label_set)
 
-			df = pd.DataFrame(utils.getLabels(e2lpd))
+			df = pd.DataFrame(utils.getLabels(e2lpd,method.__name__))
 			df = df.sort_values(by=['example'])
 			result_labels = df['label'].values
 
@@ -56,5 +57,5 @@ true_labels = pd.read_csv(truth_file)
 true_labels = true_labels['label_code'].values
 true_labels_encoded = pd.get_dummies(true_labels).values
 
-
-evaluate_sampling_rate(glad, [x * 0.1 for x in range(0, 11)] + [2,3,4,5,6,7,8,9,10,20,30,40,50],'output/glad_inital_sampling_rate.csv')
+# evaluate_sampling_rate(glad, [x * 0.1 for x in range(0, 11)] + [2,3,4,5,6,7,8,9,10,20,30,40,50],'output/glad_inital_random_sampling_rate.csv')
+evaluate_sampling_rate(catd, [x * 0.1 for x in range(0, 11)] + [2,3,4,5,6,7,8,9,10,20,30,40,50],'output/catd_inital_random_sampling_rate.csv')

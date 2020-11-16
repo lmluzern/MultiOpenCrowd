@@ -11,7 +11,18 @@ def gete2t(train_size,truth_labels):
 
     return e2t
 
-def getLabels(e2lpd):
+def getLabels_categorical(e2lpd):
+	labels = []
+
+	for e in e2lpd:
+		dct = {}
+		dct['example'] = int(e)
+		dct['label'] = int(e2lpd[e])
+		labels.append(dct)
+
+	return labels
+
+def getLabels_dummy(e2lpd):
     labels = []
 
     for e in e2lpd:
@@ -33,6 +44,13 @@ def getLabels(e2lpd):
         labels.append(dct)
 
     return labels
+
+
+def getLabels(e2lpd,method):
+	if method == 'CATD.method':
+		return getLabels_categorical(e2lpd)
+	
+	return getLabels_dummy(e2lpd)
 
 def gete2wlandw2el(annotation_file,sampling_rate):
     e2wl = {}
