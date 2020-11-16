@@ -42,6 +42,7 @@ def gete2wlandw2el(annotation_file,sampling_rate):
     aij = pd.read_csv(annotation_file).values
     all_workers = np.unique(aij[:, 1])
     all_items = np.unique(aij[:, 0])
+    num_of_labels = np.unique(aij[:, 2]).shape[0]
 
     # negative sampling
     aij_s = np.empty((0, 3), int)
@@ -58,11 +59,24 @@ def gete2wlandw2el(annotation_file,sampling_rate):
     	if possible_items.shape[0] < num_of_samples:
     		num_of_samples = possible_items.shape[0]
 
+    	# equal dist.
+    	label_ditribution = np.full((num_of_labels), 1/num_of_labels)
+    	# custom
+    	# label_ditribution = np.array([1/6,1/6,2/3])
+
+    	random_labels = np.empty((0,), int)
+    	for i in range(num_of_labels):
+    		random_labels = np.concatenate((random_labels,np.repeat(i, int(label_ditribution[i]*num_of_samples))))
+    	random_labels = np.concatenate((random_labels,np.random.randint(3, size=num_of_samples-random_labels.shape[0])))
+    	np.random.shuffle(random_labels)
+
+    	j = 0
     	for i in np.random.choice(possible_items,num_of_samples, replace=False):
     		new_answer = np.zeros(3, dtype = int)
     		new_answer[0] = i
     		new_answer[1] = worker
-    		new_answer[2] = 2
+    		new_answer[2] = random_labels[j]
+    		j+=1
     		aij_s = np.concatenate((aij_s, new_answer.reshape(-1,3)))
     	
     for e in aij_s:

@@ -5,6 +5,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.metrics import roc_auc_score
 
 supervision_rate = 0.3
+sampling_rate = 2
 annotation_file = '../input/transformed_multiclass_aij.csv'
 truth_file = '../input/transformed_multiclass_labels.csv'
 
@@ -18,7 +19,7 @@ print('train_size',train_size)
 print('test_size', test_size)
 
 e2t = utils.gete2t(train_size,true_labels)
-e2wl,w2el,label_set = utils.gete2wlandw2el(annotation_file,0.6)
+e2wl,w2el,label_set = utils.gete2wlandw2el(annotation_file,sampling_rate)
 
 e2lpd = glad.run(e2t,e2wl,w2el,label_set)
 
