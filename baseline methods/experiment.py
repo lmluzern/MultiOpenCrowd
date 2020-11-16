@@ -1,4 +1,4 @@
-import glad
+import GLAD.method as glad
 import utils
 import pandas as pd
 from sklearn.metrics import accuracy_score
@@ -18,7 +18,8 @@ print('train_size',train_size)
 print('test_size', test_size)
 
 e2t = utils.gete2t(train_size,true_labels)
-e2wl,w2el,label_set = utils.gete2wlandw2el(annotation_file)
+e2wl,w2el,label_set = utils.gete2wlandw2el(annotation_file,0.6)
+
 e2lpd = glad.run(e2t,e2wl,w2el,label_set)
 
 df = pd.DataFrame(utils.getLabels(e2lpd))

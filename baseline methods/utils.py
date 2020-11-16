@@ -1,6 +1,7 @@
 import csv
 import random
 import pandas as pd
+import numpy as np
 
 def gete2t(train_size,truth_labels):
     e2t = {}
@@ -33,14 +34,38 @@ def getLabels(e2lpd):
 
     return labels
 
-def gete2wlandw2el(annotation_file):
+def gete2wlandw2el(annotation_file,sampling_rate):
     e2wl = {}
     w2el = {}
     label_set=[]
 
     aij = pd.read_csv(annotation_file).values
+    all_workers = np.unique(aij[:, 1])
+    all_items = np.unique(aij[:, 0])
 
-    for e in aij:
+    # negative sampling
+    aij_s = np.empty((0, 3), int)
+
+    for worker in all_workers:
+    	worker_aij = aij[aij[:, 1] == worker]
+    	aij_s = np.concatenate((aij_s, worker_aij))
+
+    	num_of_answers = worker_aij.shape[0]
+    	possible_items = np.delete(all_items, worker_aij[:,0])
+    	# print(worker_aij)
+
+    	num_of_samples = int(num_of_answers * sampling_rate)
+    	if possible_items.shape[0] < num_of_samples:
+    		num_of_samples = possible_items.shape[0]
+
+    	for i in np.random.choice(possible_items,num_of_samples, replace=False):
+    		new_answer = np.zeros(3, dtype = int)
+    		new_answer[0] = i
+    		new_answer[1] = worker
+    		new_answer[2] = 2
+    		aij_s = np.concatenate((aij_s, new_answer.reshape(-1,3)))
+    	
+    for e in aij_s:
         example = str(e[0])
         worker = str(e[1])
         label = str(e[2])
