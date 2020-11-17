@@ -94,6 +94,8 @@ def gete2wlandw2el(annotation_file,sampling_rate):
     		new_answer[0] = i
     		new_answer[1] = worker
     		new_answer[2] = random_labels[j]
+    		# option fixed class
+    		# new_answer[2] = 2
     		j+=1
     		aij_s = np.concatenate((aij_s, new_answer.reshape(-1,3)))
     	
