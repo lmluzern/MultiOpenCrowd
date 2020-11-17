@@ -1,6 +1,7 @@
 import GLAD.method as glad
 import CATD.method as catd
 import LFC.method as lfc
+import DS.method as ds
 import utils
 import pandas as pd
 import numpy as np
@@ -107,9 +108,14 @@ true_labels_encoded = pd.get_dummies(true_labels).values
 # evaluate_sampling_rate(glad, [x * 0.1 for x in range(0, 11)] + [2,3,4,5,6,7],'output/glad_inital_random_sampling_rate.csv')
 # evaluate_sampling_rate(catd, [x * 0.1 for x in range(0, 11)] + [2,3,4,5,6,7,8,9,10,20,30],'output/catd_inital_random_sampling_rate.csv')
 # evaluate_sampling_rate(lfc, [x * 0.1 for x in range(0, 11)] + [2,3,4,5,6,7,8,9,10,20,30],'output/lfc_inital_random_sampling_rate.csv')
+# evaluate_sampling_rate(ds, [x * 0.1 for x in range(0, 11)] + [2,3,4,5,6,7,8,9,10,20,30],'output/ds_inital_random_sampling_rate.csv')
 
 # sampling_rate = 0.1 # for catd
 # evaluate_supervision_rate(catd,[x * 0.1 for x in range(1, 10)],'output/catd_final_random_sampling_supervision_rate.csv')
 
 # sampling_rate = 0.0 # for lfc
 # evaluate_supervision_rate(lfc,[x * 0.1 for x in range(1, 10)],'output/lfc_final_random_sampling_supervision_rate.csv')
+
+# sampling_rate = 0.1 # for ds
+# evaluate_supervision_rate(ds,[x * 0.1 for x in range(1, 10)],'output/ds_final_random_sampling_supervision_rate.csv')
+
