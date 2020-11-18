@@ -110,7 +110,10 @@ true_labels_encoded = pd.get_dummies(true_labels).values
 # evaluate_sampling_rate(lfc, [x * 0.1 for x in range(0, 11)] + [2,3,4,5,6,7,8,9,10,20,30],'output/lfc_inital_random_sampling_rate.csv')
 # evaluate_sampling_rate(ds, [x * 0.1 for x in range(0, 11)] + [2,3,4,5,6,7,8,9,10,20,30],'output/ds_inital_random_sampling_rate.csv')
 
-# sampling_rate = 0.1 # for catd
+# sampling_rate = 0.2 # for glad
+# evaluate_supervision_rate(glad,[x * 0.1 for x in range(1, 10)],'output/glad_final_random_sampling_supervision_rate.csv')
+
+# sampling_rate = 0.0 # for catd
 # evaluate_supervision_rate(catd,[x * 0.1 for x in range(1, 10)],'output/catd_final_random_sampling_supervision_rate.csv')
 
 # sampling_rate = 0.0 # for lfc
