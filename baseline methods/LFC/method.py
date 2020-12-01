@@ -302,6 +302,6 @@ def gete2t(known_true):
     return e2t
 
 def run(e2t,e2wl,w2el,label_set):
-    iterations = 20 # EM iteration number
+    iterations = 1 # EM iteration number
     e2lpd, w2cm= EM(e2wl,w2el,label_set, e2t).Run(iterations)
     return e2lpd

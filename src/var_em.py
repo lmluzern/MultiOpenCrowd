@@ -267,8 +267,8 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
     weights = classifier.get_weights()
     # pd.DataFrame(np.concatenate((column_names[1:], weights[0]), axis=1)).to_csv(weights_after_em, encoding="utf-8")
 
-    report = pd.DataFrame([accuracy_theta_i_test,auc_theta_i_test,accuracy_theta_i_val,accuracy_q_z_i_test,accuracy_q_z_i_val],index=['accuracy_theta_i_test','auc_theta_i_test','accuracy_theta_i_val','accuracy_q_z_i_test','accuracy_q_z_i_val']).transpose()
-    report = report.describe()
+    report = pd.DataFrame([accuracy_theta_i_test[-1],auc_theta_i_test[-1],accuracy_theta_i_val[-1],auc_val_theta,accuracy_q_z_i_test[-1],accuracy_q_z_i_val[-1]],index=['accuracy_theta_i_test','auc_theta_i_test','accuracy_theta_i_val','auc_theta_i_val','accuracy_q_z_i_test','accuracy_q_z_i_val']).transpose()
+    # report = report.describe()
     return q_z_i, alpha, beta, theta_i, classifier, report
 
 

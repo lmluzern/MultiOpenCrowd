@@ -219,5 +219,5 @@ def gete2t(known_true):
     return e2t
 
 def run(e2t,e2wl,w2el,label_set):
-    e2lpd, w2q = Conf_Aware(e2wl, w2el, e2t, 'categorical').Run(0.05, 100)
+    e2lpd, w2q = Conf_Aware(e2wl, w2el, e2t, 'categorical').Run(0.01, 50)
     return e2lpd

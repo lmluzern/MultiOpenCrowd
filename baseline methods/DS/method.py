@@ -255,7 +255,7 @@ def gete2t(known_true):
     return e2t
 
 def run(e2t,e2wl,w2el,label_set):
-    iterations = 20 # EM iteration number
+    iterations = 1 # EM iteration number
     initquality = 0.7
     e2lpd, w2cm = EM(e2wl,w2el,label_set,e2t,initquality).Run(iterations)
 
