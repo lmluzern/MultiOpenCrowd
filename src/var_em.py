@@ -12,9 +12,8 @@ from matplotlib import pyplot as plt
 import random
 import arguments
 
-LABEL_NAMES = ['emerging', 'established', 'no_option']
-NUMBER_OF_LABELS = len(LABEL_NAMES)
-LABEL_INDEX = np.array(range(0,NUMBER_OF_LABELS))
+NUMBER_OF_LABELS = 0
+LABEL_INDEX = []
 
 
 def init_probabilities(n_infls):
@@ -197,9 +196,9 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
     auc_val = roc_auc_score(y_val, theta_i_val,multi_class="ovo",average="macro")
     auc_test = roc_auc_score(y_test, theta_i_test,multi_class="ovo",average="macro")
 
-    print('Classification Repport for validation set:\n', classification_report(y_val_label, theta_i_val_label, target_names=LABEL_NAMES))
+    print('Classification Repport for validation set:\n', classification_report(y_val_label, theta_i_val_label))
     print('auc_val:', auc_val)
-    print('Classification Repport for test set:\n', classification_report(y_test_label, theta_i_test_label, target_names=LABEL_NAMES))
+    print('Classification Repport for test set:\n', classification_report(y_test_label, theta_i_test_label))
     print('auc_test:', auc_test)
 
     theta_i = np.concatenate((y_train, theta_i_val, theta_i_test))
@@ -246,14 +245,14 @@ def var_em(nn_em_in, n_infls_label,aij_s,new_order, n_workers, social_features_l
 
         print('em_step', em_step)
 
-        print('Classification Repport for validation set:\n', classification_report(y_val_label, q_z_i_val_label, target_names=LABEL_NAMES))
+        print('Classification Repport for validation set:\n', classification_report(y_val_label, q_z_i_val_label))
         print('auc_val:', auc_val)
-        print('Classification Repport for test set:\n', classification_report(y_test_label, q_z_i_test_label, target_names=LABEL_NAMES))
+        print('Classification Repport for test set:\n', classification_report(y_test_label, q_z_i_test_label))
         print('auc_test:', auc_test)
 
-        print('Classification Repport for validation set (theta):\n', classification_report(y_val_label, theta_i_val_label, target_names=LABEL_NAMES))
+        print('Classification Repport for validation set (theta):\n', classification_report(y_val_label, theta_i_val_label))
         print('auc_val_theta:', auc_val_theta)
-        print('Classification Repport for test set (theta):\n', classification_report(y_test_label, theta_i_test_label, target_names=LABEL_NAMES))
+        print('Classification Repport for test set (theta):\n', classification_report(y_test_label, theta_i_test_label))
         print('auc_test_theta:', auc_test_theta)
 
     
@@ -304,6 +303,11 @@ def run(influencer_file_labeled, annotation_file, labels_file, tweet2vec_file, t
     dummies = pd.get_dummies(labels['label'])
     categories = dummies.columns
     true_labels_pr = dummies.values
+
+    global NUMBER_OF_LABELS
+    NUMBER_OF_LABELS = true_labels_pr.shape[1]
+    global LABEL_INDEX
+    LABEL_INDEX = np.array(range(0,NUMBER_OF_LABELS))
 
     print (influencer_labeled.values[:, [0]].shape,social_features_labeled.shape,true_labels_pr.shape)
 
