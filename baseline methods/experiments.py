@@ -12,9 +12,6 @@ from sklearn.metrics import roc_auc_score
 epochs = 10
 supervision_rate = 0.6
 sampling_rate = 0
-annotation_file = '../input/transformed_multiclass_aij.csv'
-truth_file = '../input/transformed_multiclass_labels.csv'
-
 
 def evaluate_supervision_rate(method,supervision_rate,filepath):
 	l = []
@@ -22,6 +19,7 @@ def evaluate_supervision_rate(method,supervision_rate,filepath):
 		train_size = int(true_labels.shape[0] * rate)
 		test_size = int((true_labels.shape[0] * (1-rate))/2)
 		e2t = utils.gete2t(train_size,true_labels)
+		all_labels = np.unique(true_labels)
 
 		all_accuracy_test = []
 		all_auc_test = []
@@ -36,9 +34,15 @@ def evaluate_supervision_rate(method,supervision_rate,filepath):
 			df = df.sort_values(by=['example'])
 			result_labels = df['label'].values
 
+			if method.__name__ == 'CATD.method':
+				result_labels_encoded = pd.get_dummies(result_labels).values
+			else:
+				probs = utils.getLabelProbabilities(e2lpd,method.__name__,all_labels)
+				probs = pd.DataFrame(probs).sort_values(by=['example'])
+				result_labels_encoded = pd.DataFrame(probs.label_prob.tolist(), index= probs.index).values
+
 			accuracy_test = accuracy_score(true_labels[-test_size:], result_labels[-test_size:])
 			accuracy_val = accuracy_score(true_labels[train_size:-test_size], result_labels[train_size:-test_size])
-			result_labels_encoded = pd.get_dummies(result_labels).values
 			auc_test = roc_auc_score(true_labels_encoded[-test_size:], result_labels_encoded[-test_size:],multi_class="ovo",average="macro")
 			auc_val = roc_auc_score(true_labels_encoded[train_size:-test_size], result_labels_encoded[train_size:-test_size],multi_class="ovo",average="macro")
 
@@ -57,7 +61,7 @@ def evaluate_supervision_rate(method,supervision_rate,filepath):
 		dct['mean_accuracy_val'] = np.mean(all_accuracy_val)
 		dct['mean_auc_val'] = np.mean(all_auc_val)
 		l.append(dct)
-	pd.DataFrame(l).to_csv(filepath)
+	pd.DataFrame(l).to_csv(filepath,index=False)
 
 def evaluate_sampling_rate(method,sampling_rate,filepath):
 	train_size = int(true_labels.shape[0] * supervision_rate)
@@ -102,38 +106,36 @@ def evaluate_sampling_rate(method,sampling_rate,filepath):
 		l.append(dct)
 	pd.DataFrame(l).to_csv(filepath)
 
+
+truth_file = '../input/sentiment_transformed_labels.csv'
 true_labels = pd.read_csv(truth_file)
 true_labels = true_labels['label_code'].values
 true_labels_encoded = pd.get_dummies(true_labels).values
 
-# find hypers
-# sampling_rate = 0.0 # for glad
-# evaluate_supervision_rate(glad,[0.6],'output/glad_threshold.csv')
+### sentiment
+annotation_file = '../input/sentiment_transformed_aij.csv'
+# evaluate_supervision_rate(mv,[0.3,0.4,0.5,0.6,0.7,0.8],'output/mv_sentiment_supervision_rate.csv')
+# evaluate_supervision_rate(ds,[0.3,0.4,0.5,0.6,0.7,0.8],'output/ds_sentiment_supervision_rate.csv')
+# evaluate_supervision_rate(catd,[0.3,0.4,0.5,0.6,0.7,0.8],'output/catd_sentiment_supervision_rate.csv')
+# evaluate_supervision_rate(lfc,[0.3,0.4,0.5,0.6,0.7,0.8],'output/lfc_sentiment_supervision_rate.csv')
+# evaluate_supervision_rate(glad,[0.3,0.4,0.5,0.6,0.7,0.8],'output/glad_sentiment_supervision_rate.csv')
 
-# sampling_rate = 0.0 # for catd
-# evaluate_supervision_rate(catd,[0.6],'output/catd_iterr_and_alpha.csv')
+### sentiment sparse
+annotation_file = '../input/sentiment_sparse_transformed_aij.csv'
+# evaluate_supervision_rate(mv,[0.3,0.4,0.5,0.6,0.7,0.8],'output/mv_sentiment_sparse_supervision_rate.csv')
+# evaluate_supervision_rate(ds,[0.3,0.4,0.5,0.6,0.7,0.8],'output/ds_sentiment_sparse_supervision_rate.csv')
+# evaluate_supervision_rate(catd,[0.3,0.4,0.5,0.6,0.7,0.8],'output/catd_sentiment_sparse_supervision_rate.csv')
+# evaluate_supervision_rate(lfc,[0.3,0.4,0.5,0.6,0.7,0.8],'output/lfc_sentiment_sparse_supervision_rate.csv')
+# evaluate_supervision_rate(glad,[0.3,0.4,0.5,0.6,0.7,0.8],'output/glad_sentiment_sparse_supervision_rate.csv')
 
-# sampling_rate = 0.0 # for lfc
-# evaluate_supervision_rate(lfc,[0.6],'output/lfc_iterr.csv')
-
-# sampling_rate = 0.0 # for ds
-# evaluate_supervision_rate(ds,[0.6],'output/ds_iterr_and_initquality.csv')
-
-# evaluate_sampling_rate(glad, [x * 0.1 for x in range(0, 11)] + [2,3,4,5,6,7],'output/glad_inital_random_sampling_rate.csv')
-# evaluate_sampling_rate(catd, [x * 0.1 for x in range(0, 11)] + [2,3,4,5,6,7],'output/catd_inital_random_sampling_rate.csv')
-# evaluate_sampling_rate(lfc, [x * 0.1 for x in range(0, 11)] + [2,3,4,5,6,7],'output/lfc_inital_random_sampling_rate.csv')
-# evaluate_sampling_rate(ds, [x * 0.1 for x in range(0, 11)] + [2,3,4,5,6,7],'output/ds_inital_random_sampling_rate.csv')
-
-# sampling_rate = 0.1 # for glad
-# evaluate_supervision_rate(glad,[x * 0.1 for x in range(1, 10)],'output/glad_final_random_sampling_supervision_rate.csv')
-
-# sampling_rate = 0.2 # for catd
-# evaluate_supervision_rate(catd,[x * 0.1 for x in range(1, 10)],'output/catd_final_random_sampling_supervision_rate.csv')
-
-# sampling_rate = 0.0 # for lfc
-# evaluate_supervision_rate(lfc,[x * 0.1 for x in range(1, 10)],'output/lfc_final_random_sampling_supervision_rate.csv')
-
-# sampling_rate = 0.1 # for ds
-# evaluate_supervision_rate(ds,[x * 0.1 for x in range(1, 10)],'output/ds_final_random_sampling_supervision_rate.csv')
-
-# evaluate_supervision_rate(mv,[x * 0.1 for x in range(1, 10)],'output/mv_final_random_sampling_supervision_rate.csv')
+### influencer
+truth_file = '../input/influencer_transformed_labels.csv'
+true_labels = pd.read_csv(truth_file)
+true_labels = true_labels['label_code'].values
+true_labels_encoded = pd.get_dummies(true_labels).values
+annotation_file = '../input/influencer_transformed_aij.csv'
+# evaluate_supervision_rate(mv,[0.3,0.4,0.5,0.6,0.7,0.8],'output/mv_influencer_supervision_rate.csv')
+# evaluate_supervision_rate(ds,[0.3,0.4,0.5,0.6,0.7,0.8],'output/ds_influencer_supervision_rate.csv')
+# evaluate_supervision_rate(catd,[0.3,0.4,0.5,0.6,0.7,0.8],'output/catd_influencer_supervision_rate.csv')
+# evaluate_supervision_rate(lfc,[0.3,0.4,0.5,0.6,0.7,0.8],'output/lfc_influencer_supervision_rate.csv')
+# evaluate_supervision_rate(glad,[0.3,0.4,0.5,0.6,0.7,0.8],'output/glad_influencer_supervision_rate.csv')

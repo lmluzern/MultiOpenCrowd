@@ -11,6 +11,8 @@ $ pip3 install pandas keras sklearn tensorflow
 ```
 
 ## Usage
+To reproduce Multiclass OpenCrowd experiments, use src/experiments.py. There are some examples of run_experiment() provided.
+To reproduce baseline experiments (LFC, etc.), use baseline methods/experiments.py. There are some examples of evaluate_supervision_rate() provided.
 You can use the var_em.py script provided in src to apply Multiclass OpenCrowd on the provided data set:
 ``` bash
 python3 src/var_em.py

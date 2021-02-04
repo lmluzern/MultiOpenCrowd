@@ -220,4 +220,5 @@ def gete2t(known_true):
 
 def run(e2t,e2wl,w2el,label_set):
     e2lpd, w2q = Conf_Aware(e2wl, w2el, e2t, 'categorical').Run(0.01, 50)
+    # sentiment e2lpd, w2q = Conf_Aware(e2wl, w2el, e2t, 'categorical').Run(0.1, 5)
     return e2lpd

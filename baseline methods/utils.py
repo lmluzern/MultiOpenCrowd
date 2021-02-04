@@ -139,3 +139,19 @@ def gete2wlandw2el_OLD(annotation_file):
             label_set.append(label)
 
     return e2wl,w2el,label_set
+
+def getLabelProbabilities(e2lpd,method,all_labels):
+    out = [] 
+    if method == 'CATD.method':
+        return out
+    for e in e2lpd:
+        temp = []
+
+        for label in all_labels:
+            temp.append(e2lpd[e][str(label)])
+        
+        dct = {}
+        dct['example'] = int(e)
+        dct['label_prob'] = np.array(temp)
+        out.append(dct)
+    return out
