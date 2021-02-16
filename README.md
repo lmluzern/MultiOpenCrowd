@@ -1,4 +1,4 @@
-# Multiclass Classification of Open-ended Answers using OpenCrowd
+# Multiclass Classification OpenCrowd
 
 ### Installation
 This package requires python3. To install python3, please check the official python website
