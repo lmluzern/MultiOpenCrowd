@@ -1,4 +1,4 @@
-from src.non_feature_based.baselines import utils
+from non_feature_based.baselines import utils
 import pandas as pd
 import numpy as np
 from sklearn.metrics import accuracy_score

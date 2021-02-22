@@ -1,7 +1,7 @@
 # based on: https://github.com/TsinghuaDatabaseGroup/CrowdTI/blob/master/truth_inference_crowd/truth_methods/c_CATD/method.py (16.11.2020)
 import math, csv, random
 import numpy as np
-import src.non_feature_based.baselines.CATD.read_distribution as cdis
+import non_feature_based.baselines.CATD.read_distribution as cdis
 import sys
 
 

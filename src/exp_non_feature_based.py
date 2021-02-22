@@ -1,11 +1,11 @@
 import sys
-from src.non_feature_based.opencrowd_gibbs import experiments as gibbs_exp
-from src.non_feature_based.baselines import experiments as baseline_exp
-from src.non_feature_based.baselines.MV import method as mv
-from src.non_feature_based.baselines.DS import method as ds
-from src.non_feature_based.baselines.CATD import method as catd
-from src.non_feature_based.baselines.LFC import method as lfc
-from src.non_feature_based.baselines.GLAD import method as glad
+from non_feature_based.opencrowd_gibbs import experiments as gibbs_exp
+from non_feature_based.baselines import experiments as baseline_exp
+from non_feature_based.baselines.MV import method as mv
+from non_feature_based.baselines.DS import method as ds
+from non_feature_based.baselines.CATD import method as catd
+from non_feature_based.baselines.LFC import method as lfc
+from non_feature_based.baselines.GLAD import method as glad
 import matplotlib.pyplot as plt
 
 datasets = ['influencer','sentiment_sparse','sentiment']
