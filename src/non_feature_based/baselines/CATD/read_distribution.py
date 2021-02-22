@@ -10,7 +10,7 @@ def isfloat(value):
 
 def read_chi_square_distribution():
     # dir = os.path.split(sys.argv[0])[0]
-    dir = 'CATD'
+    dir = os.path.dirname(os.path.realpath(__file__))
     file = open(dir+'/chi-square distribution.txt','r')
     flag = 0
     chi_square_conf = []
@@ -35,7 +35,7 @@ def read_chi_square_distribution():
 
 def read_normal_distribution():
     # dir = os.path.split(sys.argv[0])[0]
-    dir = 'CATD'
+    dir = os.path.dirname(os.path.realpath(__file__))
     file = open(dir + '/normal distribution.txt','r')
     flag = 0
     normal_conf = []
