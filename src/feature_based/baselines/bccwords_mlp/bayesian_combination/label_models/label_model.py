@@ -1,6 +1,6 @@
 import numpy as np
 
-from bayesian_combination.annotator_models.annotator_model import log_dirichlet_pdf
+from feature_based.baselines.bccwords_mlp.bayesian_combination.annotator_models.annotator_model import log_dirichlet_pdf
 from scipy.special import psi, logsumexp
 
 

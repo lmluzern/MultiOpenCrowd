@@ -1,4 +1,4 @@
-from bayesian_combination.ibcc import BCCWords
+from feature_based.baselines.bccwords_mlp.bayesian_combination.ibcc import BCCWords
 import pandas as pd
 import numpy as np
 from sklearn.metrics import accuracy_score
@@ -116,7 +116,9 @@ def exp_supervision(epochs, iter, ground_truth, aij, classifier_features, bccwor
         dct['val_accuracy'] = np.mean(val_accuracy)
         dct['val_auc'] = np.mean(val_auc)
         l.append(dct)
-    pd.DataFrame(l).to_csv(file_out)
+    result = pd.DataFrame(l)
+    result.to_csv(file_out)
+    return result
 
 def exp_supervision_mlp(epochs, ground_truth, classifier_features, file_out, supervision=[]):
     l = []
@@ -156,32 +158,6 @@ def exp_supervision_mlp(epochs, ground_truth, classifier_features, file_out, sup
         dct['val_accuracy'] = np.mean(val_accuracy)
         dct['val_auc'] = np.mean(val_auc)
         l.append(dct)
-    pd.DataFrame(l).to_csv(file_out)
-
-if __name__ == '__main__':
-    ### influencer experiment:
-    ground_truth = getGroundTruth('../data/influencer_ground_truth.csv')
-    aij = getAnnotationMatrix('../data/influencer_aij.csv')
-    bccwords_features = getBCCWordsFeatures(aij.shape[0])
-    classifier_features = getClassifierFeatures('../data/influencer_features.csv')
-    #exp_iter(10, 0.6, ground_truth, aij, classifier_features, bccwords_features,'exp_iter_influencer.csv',[1,2])
-    #exp_supervision(10,5,ground_truth,aij,classifier_features,bccwords_features,'exp_supervision_influencer.csv',[0.6,0.7])
-    #exp_supervision_mlp(10,ground_truth,classifier_features,'exp_supervision_mlp_influencer.csv',[0.3,0.4,0.5,0.6,0.7,0.8])
-
-
-    ### sentiment experiment:
-    ground_truth = getGroundTruth('../data/sentiment_ground_truth.csv')
-    aij = getAnnotationMatrix('../data/sentiment_aij.csv')
-    bccwords_features = getBCCWordsFeatures(aij.shape[0])
-    classifier_features = getClassifierFeatures('../data/sentiment_features.csv')
-    #exp_iter(10, 0.6, ground_truth, aij, classifier_features, bccwords_features,'exp_iter_sentiment.csv',[1,2])
-    #exp_supervision(10, 3, ground_truth, aij, classifier_features, bccwords_features, 'exp_supervision_sentiment.csv',[0.6, 0.7])
-    #exp_supervision_mlp(10, ground_truth, classifier_features, 'exp_supervision_mlp_sentiment.csv',[0.3, 0.4, 0.5, 0.6, 0.7, 0.8])
-
-    ### sentiment sparse experiment:
-    ground_truth = getGroundTruth('../data/sentiment_ground_truth.csv')
-    aij = getAnnotationMatrix('../data/sentiment_sparse_aij.csv')
-    bccwords_features = getBCCWordsFeatures(aij.shape[0])
-    classifier_features = getClassifierFeatures('../data/sentiment_features.csv')
-    #exp_iter(10, 0.6, ground_truth, aij, classifier_features, bccwords_features,'exp_iter_sentiment_sparse.csv',[1,2])
-    #exp_supervision(10, 1, ground_truth, aij, classifier_features, bccwords_features, 'exp_supervision_sentiment_sparse.csv',[0.6, 0.7])
+    result = pd.DataFrame(l)
+    result.to_csv(file_out)
+    return result

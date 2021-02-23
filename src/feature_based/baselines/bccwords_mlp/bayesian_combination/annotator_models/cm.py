@@ -1,8 +1,8 @@
 import numpy as np
 from scipy.special.basic import psi
 
-from bayesian_combination.annotator_models.annotator_model import log_dirichlet_pdf
-from bayesian_combination.annotator_models.cv import ConfusionVectorAnnotator
+from feature_based.baselines.bccwords_mlp.bayesian_combination.annotator_models.annotator_model import log_dirichlet_pdf
+from feature_based.baselines.bccwords_mlp.bayesian_combination.annotator_models.cv import ConfusionVectorAnnotator
 
 
 class ConfusionMatrixAnnotator(ConfusionVectorAnnotator):

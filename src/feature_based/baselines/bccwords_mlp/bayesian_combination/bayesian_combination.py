@@ -7,8 +7,8 @@ from scipy.special import logsumexp, psi, gammaln
 from scipy.optimize.optimize import fmin
 from joblib import Parallel, cpu_count, effective_n_jobs
 
-from bayesian_combination.annotator_models.cm import ConfusionMatrixAnnotator
-from bayesian_combination.label_models.label_model import IndependentLabelModel
+from feature_based.baselines.bccwords_mlp.bayesian_combination.annotator_models.cm import ConfusionMatrixAnnotator
+from feature_based.baselines.bccwords_mlp.bayesian_combination.label_models.label_model import IndependentLabelModel
 
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Dense

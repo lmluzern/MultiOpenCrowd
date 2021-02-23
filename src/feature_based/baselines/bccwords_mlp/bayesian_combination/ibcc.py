@@ -2,7 +2,7 @@
 Wrapper classes to implement independent Bayesian classifier combination (IBCC-VB)
 using the Bayesian combination framework, along with variants of that model.
 '''
-from bayesian_combination.bayesian_combination import BC
+from feature_based.baselines.bccwords_mlp.bayesian_combination.bayesian_combination import BC
 
 
 class BCCWords(BC):
