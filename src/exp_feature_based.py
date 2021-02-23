@@ -39,7 +39,7 @@ classifier_features = bccwords_mlp_exp.getClassifierFeatures('../input/' + filen
 bccwords_features = bccwords_mlp_exp.getBCCWordsFeatures(aij.shape[0])
 
 print('run Multiclass OpenCrowd...')
-multiclass_opencrowd_result = multiclass_opencrowd_exp.run_experiment(epochs=epochs, file_out='../output/multiclass_opencrowd_' + dataset + '_supervision_rate.csv', value_range=supervision_rate, value_name='supervision_rate', random_sampling=False, sampling_rate=sampling_rate, supervision_rate=0, iterr=iter_opencrowd, file_labeled='../input/' + filename + '_labeled.csv', annotation_file='../input/' + dataset + '_aij.csv', labels_file='../input/' + dataset + '_labels.csv', tweet2vec_file='../input/' + filename + '_tweet2vec_glove_200d.csv')
+multiclass_opencrowd_result = multiclass_opencrowd_exp.run_experiment(epochs=epochs, file_out='../output/multiclass_opencrowd_' + dataset + '_supervision_rate.csv', value_range=supervision_rate, value_name='supervision_rate', random_sampling=False, sampling_rate=sampling_rate, supervision_rate=0, iterr=iter_opencrowd, file_labeled='../input/' + filename + '_labeled.csv', annotation_file='../input/' + dataset + '_aij.csv', labels_file='../input/' + filename + '_labels.csv', tweet2vec_file='../input/' + filename + '_tweet2vec_glove_200d.csv')
 print('run BCCWords MLP...')
 bccwords_mlp_result = bccwords_mlp_exp.exp_supervision(epochs,iter,ground_truth,aij,classifier_features,bccwords_features,'../output/bccwords_mlp_' + dataset + '_supervision_rate.csv',supervision_rate)
 print('run MLP...')
