@@ -53,7 +53,7 @@ plt.plot(bccwords_mlp_result['supervision_rate'],bccwords_mlp_result['test_accur
 plt.plot(mlp_result['supervision_rate'],mlp_result['test_accuracy'],marker='o',label='MLP')
 plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
 plt.tight_layout()
-plt.savefig('../output/exp_feature_based_supervision_accuracy.png')
+plt.savefig('../output/exp_feature_based_' + dataset + '_supervision_accuracy.png')
 
 plt.clf()
 plt.xlabel("supervision rate")
@@ -62,4 +62,4 @@ plt.plot(multiclass_opencrowd_result['supervision_rate'],multiclass_opencrowd_re
 plt.plot(bccwords_mlp_result['supervision_rate'],bccwords_mlp_result['test_auc'],marker='o',label='BCCWords MLP')
 plt.plot(mlp_result['supervision_rate'],mlp_result['test_auc'],marker='o',label='MLP')
 plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
-plt.savefig('../output/exp_feature_based_supervision_auc.png')
+plt.savefig('../output/exp_feature_based_' + dataset + '_supervision_auc.png')

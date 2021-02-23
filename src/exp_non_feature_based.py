@@ -90,7 +90,7 @@ plt.plot(lfc_result['supervision_rate'],lfc_result['mean_accuracy_test'],marker=
 plt.plot(glad_result['supervision_rate'],glad_result['mean_accuracy_test'],marker='o',label='GLAD')
 plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
 plt.tight_layout()
-plt.savefig('../output/exp_non_feature_based_supervision_accuracy.png')
+plt.savefig('../output/exp_non_feature_based_' + dataset + '_supervision_accuracy.png')
 
 plt.clf()
 plt.xlabel("supervision rate")
@@ -102,4 +102,4 @@ plt.plot(catd_result['supervision_rate'],catd_result['mean_auc_test'],marker='o'
 plt.plot(lfc_result['supervision_rate'],lfc_result['mean_auc_test'],marker='o',label='LFC')
 plt.plot(glad_result['supervision_rate'],glad_result['mean_auc_test'],marker='o',label='GLAD')
 plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
-plt.savefig('../output/exp_non_feature_based_supervision_auc.png')
+plt.savefig('../output/exp_non_feature_based_' + dataset + '_supervision_auc.png')
