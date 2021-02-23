@@ -13,23 +13,29 @@ Note that FaitCrowd, another feature-based baseline method, is not publicly avai
 Scripts were successfully tested with Python 3.6.9.
 
 ### Setup virtual environment
-The following statement will set up the virtual environment and install the required libraries.
-
-``` bash 
+First, navigate to the project folder.
+``` bash
+$ cd MultiOpenCrowd/
+```
+The following statement will set up the virtual environment and install the required libraries. Pip will be upgraded.
+``` bash
 $ source installation.sh
 ```
 
 ## Reproducing Experiments
-The resulting plot (.png) and the raw data (.csv) are exported to output/. 
+The resulting plot (.png) and the raw data (.csv) are exported to output/. First, navigate to the src directory.
+``` bash
+$ cd src/ 
+```
 
 ### Non-feature-based experiment
 You must pass the dataset as argument [influencer,sentiment_sparse,sentiment]. To reproduce the non-feature-based experiments with varying supervision rate, run the following script (example on Influencer dataset).
 ``` bash
-python src/exp_non_feature_based.py influencer
+python exp_non_feature_based.py influencer
 ```
 
 ### Feature-based experiment
 You must pass the dataset as argument [influencer,sentiment_sparse,sentiment]. To reproduce the feature-based experiments with varying supervision rate, run the following script (example on Influencer dataset).
 ``` bash
-python src/exp_feature_based.py influencer
+python exp_feature_based.py influencer
 ```
