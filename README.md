@@ -23,19 +23,7 @@ $ source installation.sh
 ```
 
 ## Reproducing Experiments
-The resulting plot (.png) and the raw data (.csv) are exported to output/. First, navigate to the src directory.
+The resulting plot (.png) and the raw data (.csv) are exported to output/. To run all the experiments, you can use the following script. Note that this will take a while.
 ``` bash
-$ cd src/ 
-```
-
-### Non-feature-based experiment
-You must pass the dataset as argument [influencer,sentiment_sparse,sentiment]. To reproduce the non-feature-based experiments with varying supervision rate, run the following script (example on Influencer dataset).
-``` bash
-python exp_non_feature_based.py influencer
-```
-
-### Feature-based experiment
-You must pass the dataset as argument [influencer,sentiment_sparse,sentiment]. To reproduce the feature-based experiments with varying supervision rate, run the following script (example on Influencer dataset).
-``` bash
-python exp_feature_based.py influencer
+$ source run_experiments.sh
 ```
