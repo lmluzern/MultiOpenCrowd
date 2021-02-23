@@ -25,5 +25,5 @@ $ source installation.sh
 ## Reproducing Experiments
 The resulting plot (.png) and the raw data (.csv) are exported to output/. To run all the experiments, you can use the following script. Note that this will take a while.
 ``` bash
-$ source run_experiments.sh
+$ sh run_experiments.sh
 ```
