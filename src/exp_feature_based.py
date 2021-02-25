@@ -15,10 +15,12 @@ except:
     exit()
 
 filename = dataset
+C = 0.2 #LR parameter; evaluated [0.00001, 0.0001, ..., 10] on validation set
 if dataset == 'influencer':
     sampling_rate = 6
     iter_opencrowd = 5
     iter = 5
+    C = 0.06
 
 elif dataset == 'sentiment_sparse':
     sampling_rate = 4
@@ -43,7 +45,9 @@ multiclass_opencrowd_result = multiclass_opencrowd_exp.run_experiment(epochs=epo
 print('run BCCWords MLP...')
 bccwords_mlp_result = bccwords_mlp_exp.exp_supervision(epochs,iter,ground_truth,aij,classifier_features,bccwords_features,'../output/bccwords_mlp_' + dataset + '_supervision_rate.csv',supervision_rate)
 print('run MLP...')
-mlp_result = bccwords_mlp_exp.exp_supervision_mlp(epochs, ground_truth, classifier_features, '../output/mlp_' + dataset + 'supervision_rate.csv',supervision_rate)
+mlp_result = bccwords_mlp_exp.exp_supervision_mlp(epochs, ground_truth, classifier_features, '../output/mlp_' + dataset + '_supervision_rate.csv',supervision_rate)
+print('run LR...')
+lr_result = bccwords_mlp_exp.exp_supervision_lr(1, ground_truth, classifier_features, '../output/lr_' + dataset + '_supervision_rate.csv',C,supervision_rate)
 
 
 plt.xlabel("supervision rate")
@@ -51,6 +55,7 @@ plt.ylabel("accuracy")
 plt.plot(multiclass_opencrowd_result['supervision_rate'],multiclass_opencrowd_result['accuracy_theta_i_test'],marker='o',label='Mutli. OpenCrowd')
 plt.plot(bccwords_mlp_result['supervision_rate'],bccwords_mlp_result['test_accuracy'],marker='o',label='BCCWords MLP')
 plt.plot(mlp_result['supervision_rate'],mlp_result['test_accuracy'],marker='o',label='MLP')
+plt.plot(lr_result['supervision_rate'],lr_result['test_accuracy'],marker='o',label='LR')
 plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
 plt.tight_layout()
 plt.savefig('../output/exp_feature_based_' + dataset + '_supervision_accuracy.png')
@@ -61,5 +66,6 @@ plt.ylabel("auc")
 plt.plot(multiclass_opencrowd_result['supervision_rate'],multiclass_opencrowd_result['auc_theta_i_test'],marker='o',label='Mutli. OpenCrowd')
 plt.plot(bccwords_mlp_result['supervision_rate'],bccwords_mlp_result['test_auc'],marker='o',label='BCCWords MLP')
 plt.plot(mlp_result['supervision_rate'],mlp_result['test_auc'],marker='o',label='MLP')
+plt.plot(lr_result['supervision_rate'],lr_result['test_auc'],marker='o',label='LR')
 plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
 plt.savefig('../output/exp_feature_based_' + dataset + '_supervision_auc.png')

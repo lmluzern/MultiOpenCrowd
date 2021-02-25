@@ -196,5 +196,5 @@ def exp_supervision_lr(epochs, ground_truth, classifier_features, file_out, C, s
         dct['val_auc'] = np.mean(val_auc)
         l.append(dct)
     result = pd.DataFrame(l)
-    result.to_csv(file_out)
+    result.to_csv(file_out,index=False)
     return result
