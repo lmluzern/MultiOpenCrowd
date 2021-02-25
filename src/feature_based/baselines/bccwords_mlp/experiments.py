@@ -4,6 +4,7 @@ import numpy as np
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
 from tensorflow.keras.callbacks import EarlyStopping
 
 def getBCCWordsModel(num_of_classes=3, num_of_workers=3, max_iter=3):
@@ -152,6 +153,42 @@ def exp_supervision_mlp(epochs, ground_truth, classifier_features, file_out, sup
                                     average="macro"))
         dct = {}
         dct['epochs'] = epochs
+        dct['supervision_rate'] = supervision_rate
+        dct['test_accuracy'] = np.mean(test_accuracy)
+        dct['test_auc'] = np.mean(test_auc)
+        dct['val_accuracy'] = np.mean(val_accuracy)
+        dct['val_auc'] = np.mean(val_auc)
+        l.append(dct)
+    result = pd.DataFrame(l)
+    result.to_csv(file_out)
+    return result
+
+def exp_supervision_lr(epochs, ground_truth, classifier_features, file_out, C, supervision=[]):
+    l = []
+    true_labels_pr = pd.get_dummies(ground_truth).values
+    for supervision_rate in supervision:
+        test_accuracy = []
+        val_accuracy = []
+        test_auc = []
+        val_auc = []
+        x_train, x_test, y_train, y_test = train_test_split(classifier_features, ground_truth,
+                                                        test_size=(round(1 - supervision_rate, 1)), shuffle=False)
+        x_val, x_test, y_val, y_test = train_test_split(x_test, y_test, test_size=0.5, shuffle=False)
+        for e in range(epochs):
+            classifier = LogisticRegression(max_iter=1000,C=C).fit(x_train, y_train)
+            theta_i = classifier.predict_proba(classifier_features)
+            theta_i_label = classifier.predict(classifier_features)
+            test_accuracy.append(accuracy_score(ground_truth[-x_test.shape[0]:], theta_i_label[-x_test.shape[0]:]))
+            val_accuracy.append(accuracy_score(ground_truth[x_train.shape[0]:-x_test.shape[0]], theta_i_label[x_train.shape[0]:-x_test.shape[0]]))
+
+            test_auc.append(roc_auc_score(true_labels_pr[-x_test.shape[0]:, :], theta_i[-x_test.shape[0]:, :], multi_class="ovo",
+                                     average="macro"))
+            val_auc.append(roc_auc_score(true_labels_pr[x_train.shape[0]:-x_test.shape[0], :],
+                                    theta_i[x_train.shape[0]:-x_test.shape[0], :], multi_class="ovo",
+                                    average="macro"))
+        dct = {}
+        dct['epochs'] = epochs
+        dct['C'] = C
         dct['supervision_rate'] = supervision_rate
         dct['test_accuracy'] = np.mean(test_accuracy)
         dct['test_auc'] = np.mean(test_auc)
