@@ -23,7 +23,8 @@ $ source installation.sh
 ```
 
 ## Reproducing Experiments
-The resulting plot (.png) and the raw data (.csv) are exported to output/. To run all the experiments, you can use the following script. Note that this will take a while.
+To reproduce the experiments we report in sections 4.2, 4.3, and 4.4 of the thesis, you can use the following script. Note that this will take a while. The resulting plot (.png) and the raw data (.csv) are exported to `output/`.
 ``` bash
 $ sh run_experiments.sh
 ```
+To find the initial parameters for OpenCrowd with Gibbs Sampling, we used `src/non_feature_based/opencrowd_gibbs/experiment_3d.py`. This script generated the raw data for the 3d plots we show in the appendix.
