@@ -53,4 +53,5 @@ for random_sampling in [True,False]:
     plt.savefig('../output/exp_feature_based_' + sampling_type + '_accuracy.png')
     plt.figure(2)
     plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
+    plt.tight_layout()
     plt.savefig('../output/exp_feature_based_' + sampling_type + '_auc.png')
