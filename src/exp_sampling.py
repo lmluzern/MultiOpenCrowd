@@ -1,7 +1,7 @@
 from feature_based.multiclass_opencrowd import experiments as multiclass_opencrowd_exp
 import matplotlib.pyplot as plt
 
-datasets = ['influencer','sentiment_sparse','sentiment']
+datasets = ['sentiment','sentiment_sparse','influencer']
 supervision_rate = 0.6
 epochs = 10
 for random_sampling in [True,False]:
@@ -10,9 +10,9 @@ for random_sampling in [True,False]:
     plt.xlabel("sampling rate")
     plt.ylabel("accuracy")
     plt.figure(2)
+    plt.clf()
     plt.xlabel("sampling rate")
     plt.ylabel("auc")
-    plt.clf()
     if random_sampling:
         sampling_type = 'random_sampling'
         sampling_rate = [0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
@@ -41,10 +41,10 @@ for random_sampling in [True,False]:
                                                                               labels_file='../input/' + filename + '_labels.csv',
                                                                               tweet2vec_file='../input/' + filename + '_tweet2vec_glove_200d.csv')
         plt.figure(1)
-        plt.plot(multiclass_opencrowd_result['sampling_rate'], multiclass_opencrowd_result['accuracy_theta_i_test'],
+        plt.plot(multiclass_opencrowd_result['sampling_rate'], multiclass_opencrowd_result['accuracy_theta_i_val'],
                  marker='o', label=dataset)
         plt.figure(2)
-        plt.plot(multiclass_opencrowd_result['sampling_rate'], multiclass_opencrowd_result['auc_theta_i_test'],
+        plt.plot(multiclass_opencrowd_result['sampling_rate'], multiclass_opencrowd_result['auc_theta_i_val'],
                  marker='o', label=dataset)
 
     plt.figure(1)
